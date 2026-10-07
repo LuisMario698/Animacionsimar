@@ -9,7 +9,7 @@ Todo vive en un solo archivo, [`index.html`](./index.html): Three.js 0.159 y GSA
 desde jsDelivr y las tipografías (Atkinson Hyperlegible Next y Mono) desde Google Fonts; lo demás
 (pantallas, hojas, texturas, continentes) se genera dentro de la página.
 
-## Guion (71 s en bucle)
+## Guion (87 s en bucle)
 
 | Tiempo | Escena |
 |---|---|
@@ -17,11 +17,13 @@ desde jsDelivr y las tipografías (Atkinson Hyperlegible Next y Mono) desde Goog
 | 0:07 | El problema: manifiestos escritos a mano que se deterioran |
 | 0:16 | La plataforma: laptop con el Panel y teléfono con "Nuevo manifiesto" |
 | 0:25 | Trazabilidad: embarcación → centro de acopio → reciclaje o relleno |
-| 0:33 | Don Francisco: la cita y los principios de diseño |
-| 0:39 | Conciencia azul: 1 L de aceite puede contaminar un millón de litros de agua (cubo de 10 m, a escala) |
-| 0:47 | Impacto: 742 manifiestos, 80,957 kg de basura, 125,530 L de aceite, 125.6 t de CO₂ |
-| 0:56 | Puertos: Puerto Peñasco y 8 puertos más en el globo |
-| 1:04 | Cierre |
+| 0:32 | MARPOL Anexo V: ni un plástico al mar; el manifiesto en formato MARPOL que genera SiMAR, firmado y con sello |
+| 0:41 | Don Francisco: la cita y los principios de diseño |
+| 0:47 | Conciencia azul: 1 L de aceite puede contaminar un millón de litros de agua (cubo de 10 m, a escala) |
+| 0:55 | Impacto: 742 manifiestos, 80,957 kg de basura, 125,530 L de aceite, 125.6 t de CO₂ |
+| 1:04 | Puertos: Puerto Peñasco y 8 puertos más en el globo |
+| 1:12 | Plan México: mapa de México en 3D y las metas con las que se alinea SiMAR |
+| 1:20 | Cierre |
 
 ## Monitor del stand (modo kiosco)
 
@@ -79,10 +81,29 @@ total de 742, como en la app, pero se dejan fuera de la gráfica. Las hojas de p
 **Conciencia azul:** 1 litro de aceite puede contaminar 1,000,000 de litros de agua (1,000 m³, un
 cubo de 10 m por lado). El cubito de aceite mide 10 cm por lado, a la misma escala.
 
+**Manifiesto en formato MARPOL (escena 0:32):** es el manifiesto real `MAN22052026 001` de la base de
+DCK (embarcación Keiko II, 23 de mayo de 2026: 140 L de aceite usado, 4 filtros de aceite, 4 de diésel,
+1 de aire y 120 kg de basura), dibujado con el formato del PDF que genera SiMAR
+(`lib/utils/pdfGenerator.ts`). Se omiten los nombres de las personas y el logotipo de SEMARNAT.
+
+**MARPOL 73/78, Anexo V:** reglas para prevenir la contaminación por la basura de los buques. La
+versión revisada (resolución MEPC.201(62), en vigor desde el 1 de enero de 2013) prohíbe descargar en el
+mar todo tipo de plástico. México es Parte del convenio MARPOL (adhesión de 1992) y de su Anexo V. El
+aceite usado y los residuos aceitosos corresponden al Anexo I; el formulario de SiMAR los registra junto
+con la basura.
+
+**Plan México:** "Estrategia de Desarrollo Económico Equitativo y Sustentable para la Prosperidad
+Compartida", presentado por el Gobierno de México el 13 de enero de 2025. Entre sus metas están la
+sostenibilidad (menos contaminación del aire y del agua), trámites más ágiles y 150 mil profesionistas y
+técnicos más cada año. La escena dice con qué metas se alinea SiMAR; **no es material oficial del Plan
+México** ni usa su identidad gráfica. El mapa es la silueta de México de world-atlas `countries-50m`
+rasterizada a 0.2°.
+
 **Diseño:** rama `online` de [DCK_react](https://github.com/LuisMario698/DCK_react):
 
-- Logotipo y símbolo: `public/assets/simar/` (el logotipo va incrustado como WebP; el emblema 3D
-  se modeló midiendo los bordes y colores de `simbolo-grande.png`).
+- Logotipo y símbolo: `public/assets/simar/` (el logotipo va incrustado como WebP, con `nombre-claro.png`
+  sobre la hoja blanca del manifiesto; el emblema 3D se modeló midiendo los bordes y colores de
+  `simbolo-grande.png`).
 - Colores, tipografía y menú del Panel: `DISEÑO_SIMAR.md` y `components/layout/Sidebar.tsx`.
 - Coordenadas de los puertos: `components/landing/mapa/puertos.ts`.
 - Cita de Don Francisco: `components/landing/VariantCinematic.tsx`.
