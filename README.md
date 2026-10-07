@@ -23,9 +23,40 @@ desde jsDelivr y las tipografías (Atkinson Hyperlegible Next y Mono) desde Goog
 | 0:56 | Puertos: Puerto Peñasco y 8 puertos más en el globo |
 | 1:04 | Cierre |
 
-Controles: reproducir/pausar, reiniciar, barra para adelantar, pantalla completa y botones por
-escena. <kbd>Espacio</kbd> pausa y <kbd>←</kbd> <kbd>→</kbd> cambian de escena. Con
-`prefers-reduced-motion` empieza en pausa.
+## Monitor del stand (modo kiosco)
+
+La página es sólo la presentación: sin encabezado, botones ni barra. Ocupa toda la ventana en
+16:9 (con franjas negras si el monitor tiene otra proporción) y se reproduce en bucle sola.
+
+- **Pausar o reanudar:** clic o toque en cualquier parte, o las teclas <kbd>Espacio</kbd> o
+  <kbd>Enter</kbd>.
+- **Pantalla completa:** doble clic (sólo entra, no sale) o la tecla <kbd>F</kbd>. Lo más
+  seguro es abrir el navegador ya en modo kiosco, porque así la pantalla completa también se
+  conserva si la página se reinicia sola:
+
+  ```bat
+  :: Windows (Chrome). El perfil propio conserva la copia sin conexión entre reinicios.
+  "C:\Program Files\Google\Chrome\Application\chrome.exe" --kiosk --user-data-dir=C:\SimarKiosco --noerrdialogs --disable-domain-blocking-for-3d-apis https://animacionsimar.vercel.app
+  ```
+
+  ```bash
+  # macOS o Linux (Chrome)
+  google-chrome --kiosk --user-data-dir="$HOME/simar-kiosco" --noerrdialogs --disable-domain-blocking-for-3d-apis https://animacionsimar.vercel.app
+  ```
+
+  Evita `msedge --kiosk`: el modo kiosco de Edge es InPrivate y borra la copia sin conexión al
+  cerrarse. Para salir del modo kiosco: <kbd>Alt</kbd>+<kbd>F4</kbd> (Windows) o
+  <kbd>Cmd</kbd>+<kbd>Q</kbd> (macOS).
+- El cursor se oculta solo y reaparece al mover el mouse. El clic derecho, la pulsación larga y el
+  zoom con pellizco están desactivados.
+- La página pide que la pantalla no se apague mientras se muestra (Screen Wake Lock); conviene
+  además desactivar el apagado de pantalla del sistema.
+- **Sin internet:** después de abrirla una vez con conexión, el navegador guarda una copia
+  (service worker en [`sw.js`](./sw.js)) y la presentación sigue funcionando aunque el stand pierda
+  internet. Con conexión, siempre carga la versión más reciente. **Antes del evento:** ábrela una
+  vez con internet, cierra el navegador, desconecta la red y confirma que vuelve a reproducirse.
+- Si el navegador pierde WebGL, no carga las bibliotecas o no termina de cargar, la página se
+  reinicia sola.
 
 ## Fuentes de los datos
 
