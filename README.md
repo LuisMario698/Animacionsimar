@@ -18,8 +18,8 @@ desde jsDelivr y las tipografías (Atkinson Hyperlegible Next y Mono) desde Goog
 | 0:16 | La plataforma: laptop con el Panel y teléfono con "Nuevo manifiesto" |
 | 0:25 | Trazabilidad: embarcación → centro de acopio → reciclaje o relleno |
 | 0:33 | Don Francisco: la cita y los principios de diseño |
-| 0:39 | Conciencia azul: 1 L de aceite en 1 m³ de agua |
-| 0:47 | Impacto: 55 manifiestos, 209 kg, 49.2 L, 69 kg de CO₂ |
+| 0:39 | Conciencia azul: 1 L de aceite puede contaminar un millón de litros de agua (cubo de 10 m, a escala) |
+| 0:47 | Impacto: 742 manifiestos, 80,957 kg de basura, 125,530 L de aceite, 125.6 t de CO₂ |
 | 0:56 | Puertos: Puerto Peñasco y 8 puertos más en el globo |
 | 1:04 | Cierre |
 
@@ -29,11 +29,31 @@ escena. <kbd>Espacio</kbd> pausa y <kbd>←</kbd> <kbd>→</kbd> cambian de esce
 
 ## Fuentes de los datos
 
-Se tomaron de la rama `online` de [DCK_react](https://github.com/LuisMario698/DCK_react):
+**Cifras:** base de datos de DCK (proyecto Supabase "CIAD"), consultada en sólo lectura el 7 de
+octubre de 2026, con las mismas sumas que `estadisticas_publicas()` de SiMAR:
 
+| Dato | Valor |
+|---|---|
+| Manifiestos | 742, de 172 embarcaciones (abril 2024 a mayo 2026) |
+| Aceite usado | 125,530 L |
+| Basura | 80,957 kg |
+| Basurón | 156 kg (1 viaje) |
+| CO₂ evitado (estimado) | 125.6 t = 125,530 × 1.0 + 156 × 0.5 kg (`lib/utils/equivalencias.ts`) |
+
+La gráfica del Panel usa los manifiestos por mes de abril 2024 a mayo 2026. Tres registros tienen
+fecha de emisión posterior a su captura (dos en agosto 2026 y uno en octubre 2029): cuentan en el
+total de 742, como en la app, pero se dejan fuera de la gráfica. Las hojas de papel y la tabla de
+"Últimos manifiestos" muestran manifiestos reales (folio, embarcación, cantidades y fecha).
+
+**Conciencia azul:** 1 litro de aceite puede contaminar 1,000,000 de litros de agua (1,000 m³, un
+cubo de 10 m por lado). El cubito de aceite mide 10 cm por lado, a la misma escala.
+
+**Diseño:** rama `online` de [DCK_react](https://github.com/LuisMario698/DCK_react):
+
+- Logotipo y símbolo: `public/assets/simar/` (el logotipo va incrustado como WebP; el emblema 3D
+  se modeló midiendo los bordes y colores de `simbolo-grande.png`).
 - Colores, tipografía y menú del Panel: `DISEÑO_SIMAR.md` y `components/layout/Sidebar.tsx`.
 - Coordenadas de los puertos: `components/landing/mapa/puertos.ts`.
-- 1 L de aceite = 1,000 L de agua: `lib/constants/impacto.ts`.
 - Cita de Don Francisco: `components/landing/VariantCinematic.tsx`.
 
 Los continentes del globo son [world-atlas](https://github.com/topojson/world-atlas) `land-50m`
