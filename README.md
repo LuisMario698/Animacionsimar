@@ -22,7 +22,7 @@ desde jsDelivr y las tipografías (Atkinson Hyperlegible Next y Mono) desde Goog
 | 0:47 | Conciencia azul: 1 L de aceite puede contaminar un millón de litros de agua (cubo de 10 m, a escala) |
 | 0:55 | Impacto: 742 manifiestos, 80,957 kg de basura, 125,530 L de aceite, 125.6 t de CO₂ |
 | 1:04 | Puertos: Puerto Peñasco y 8 puertos más en el globo |
-| 1:12 | Plan México: mapa de México en 3D y las metas 9 y 10, con las que SiMAR está en línea |
+| 1:12 | Plan México: mapa de México en 3D y las dos metas con las que SiMAR está en línea |
 | 1:20 | Cierre |
 
 ## Monitor del stand (modo kiosco)
@@ -85,8 +85,9 @@ cubo de 10 m por lado). El cubito de aceite mide 10 cm por lado, a la misma esca
 (embarcación Keiko II, 23 de mayo de 2026: 140 L de aceite usado, 4 filtros de aceite, 4 de diésel,
 1 de aire y 120 kg de basura), dibujado con el formato del PDF que genera SiMAR
 (`lib/utils/pdfGenerator.ts`). Es una representación: se omiten los nombres de las personas, el
-logotipo de SEMARNAT y los números de registro y autorización del encabezado, y el sello es la marca
-de registro de SiMAR (no una certificación de MARPOL).
+logotipo de SEMARNAT, los números de registro y autorización y el código postal del encabezado; el
+sello es la marca de registro de SiMAR (no una certificación de MARPOL) y el renglón de quien recibe
+señala que la basura es del Anexo V y el aceite usado del Anexo I.
 
 **MARPOL 73/78, Anexo V** (reglas para prevenir la contaminación por las basuras de los buques):
 desde 1988 prohíbe descargar plásticos al mar, incluidas las artes de pesca; la versión revisada
@@ -98,8 +99,8 @@ junto con la basura. SiMAR registra las entregas; no certifica el cumplimiento d
 
 **Plan México** ("Estrategia de Desarrollo Económico Equitativo y Sustentable para la Prosperidad
 Compartida"): lo presentó la Presidencia de la República el 13 de enero de 2025, con 13 metas. La escena
-nombra las dos con las que SiMAR está en línea: la meta 10, sostenibilidad ambiental empresarial, y la
-meta 9, 150 mil profesionistas y técnicos más cada año. **SiMAR es un proyecto independiente: la escena
+nombra las dos con las que SiMAR está en línea: sostenibilidad ambiental empresarial y talento técnico
+(150 mil profesionistas y técnicos más cada año). No se numeran porque las fuentes no coinciden. **SiMAR es un proyecto independiente: la escena
 no es material oficial del Plan México** ni usa su identidad gráfica, y las cifras de SiMAR no se
 presentan como resultados del Plan. El mapa es la silueta de México de world-atlas `countries-50m`
 rasterizada a 0.2°.

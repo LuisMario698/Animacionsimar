@@ -294,8 +294,8 @@ body.sin-cursor,body.sin-cursor *{cursor:none!important}
           <h2 class="ln h">En línea con el</h2>
           <h2 class="ln h"><span class="kw">Plan México.</span></h2>
           <div class="goals">
-            <div class="ln goal"><small>Meta 10 · Sostenibilidad ambiental empresarial</small><b>Residuos registrados y trazables</b><span>Aceite usado, filtros y basura de las embarcaciones del puerto</span></div>
-            <div class="ln goal"><small>Meta 9 · Talento técnico</small><b>Desarrollado en Puerto Peñasco</b><span>por el ITSPP y DCK Conciencia y Cultura</span></div>
+            <div class="ln goal"><small>Meta · Sostenibilidad ambiental empresarial</small><b>Residuos registrados y trazables</b><span>Aceite usado, filtros y basura de las embarcaciones del puerto</span></div>
+            <div class="ln goal"><small>Meta · Talento técnico</small><b>Desarrollado en Puerto Peñasco</b><span>por el ITSPP y DCK Conciencia y Cultura</span></div>
           </div>
           <p class="ln note">Plan México: Estrategia de Desarrollo Económico Equitativo y Sustentable para la Prosperidad Compartida, presentada el 13 de enero de 2025. SiMAR es un proyecto independiente; esto no es material oficial del Plan México.</p>
         </div>
@@ -1396,7 +1396,7 @@ function drawMarpolPdf() {
   txt(x, 'SEMARNAT', 1018, 104, `800 38px ${FONT}`, ink, 'right');
   txt(x, 'CENTRO DE ACOPIO 2024 AL 2034', 1018, 140, `700 23px ${FONT}`, ink, 'right');
   txt(x, 'Folio: ' + m.folio, 1018, 180, `700 24px ${MONO}`, ink, 'right');
-  txt(x, 'Puerto Peñasco, Sonora C.P. 83500', 1018, 220, `400 22px ${FONT}`, ink, 'right');
+  txt(x, 'Puerto Peñasco, Sonora', 1018, 220, `400 22px ${FONT}`, ink, 'right');
   txt(x, 'Puerto Peñasco, Sonora a ' + m.fechaLarga, W / 2, 300, `400 28px ${FONT}`, ink, 'center');
   // Caja principal con los residuos
   x.lineWidth = 4; x.strokeRect(50, 330, 1000, 1120);
@@ -1411,7 +1411,8 @@ function drawMarpolPdf() {
   // Quién recibe y el anexo de MARPOL
   line(50, 1010, 1050, 4);
   txt(x, 'RECIBE: Comisionado de líquidos y sólidos', 74, 1054, `800 26px ${FONT}`, ink);
-  txt(x, 'Basura y residuos aceitosos (MARPOL - Anexo V)', 74, 1092, `800 26px ${FONT}`, ink);
+  // El aceite usado es del Anexo I de MARPOL; la basura, del Anexo V
+  txt(x, 'Basura (MARPOL Anexo V) y residuos aceitosos (Anexo I)', 74, 1092, `800 26px ${FONT}`, ink);
   // Firmas al pie
   const colW = 1000 / 3, fy = 1300;
   [['RESPONSABLE DE ENTREGA DE', 'LÍQUIDOS (ACEITE USADO)'], ['MOTORISTA', ''], ['COCINERO', '']].forEach(([a, b], i) => {
@@ -1444,7 +1445,7 @@ function drawSeal() {
   return canvasTex(c);
 }
 const SIG_FS = `uniform sampler2D map; uniform float uP; varying vec2 vUv;
-  void main(){ vec4 c = texture2D(map, vUv); float m = 1.0 - smoothstep(uP - 0.06, uP, vUv.x * 1.06);
+  void main(){ vec4 c = texture2D(map, vUv); float m = 1.0 - smoothstep(uP * 1.06 - 0.06, uP * 1.06, vUv.x);
     gl_FragColor = vec4(c.rgb, c.a * m);
     #include <colorspace_fragment>
   }`;
@@ -1909,9 +1910,10 @@ function buildPlan() {
     sh.vertexShader = sh.vertexShader
       .replace('#include <common>', '#include <common>\nattribute float aD; attribute float aR; uniform float uRise; uniform float uWave; varying float vGlow;')
       .replace('#include <begin_vertex>', `#include <begin_vertex>
-        float g = smoothstep(aD - 0.1, aD + 0.02, uRise * 1.12);
+        float g = smoothstep(aD - 0.1, aD + 0.02, uRise * 1.22 - 0.1);
         float w = exp(-pow((aD - (uWave * 1.6 - 0.2)) * 7.0, 2.0)) * smoothstep(0.0, 0.05, uWave) * (1.0 - smoothstep(0.95, 1.0, uWave));
         transformed.y *= max(0.0001, g * (0.1 + aR * 0.06 + w * 0.42));
+        transformed.xz *= step(0.01, g);   // la que aún no crece no se dibuja (no pelea con el piso)
         vGlow = w * g;`);
     sh.fragmentShader = sh.fragmentShader
       .replace('#include <common>', '#include <common>\nvarying float vGlow;')
