@@ -17,12 +17,12 @@ desde jsDelivr y las tipografías (Atkinson Hyperlegible Next y Mono) desde Goog
 | 0:07 | El problema: manifiestos escritos a mano que se deterioran |
 | 0:16 | La plataforma: laptop con el Panel y teléfono con "Nuevo manifiesto" |
 | 0:25 | Trazabilidad: embarcación → centro de acopio → reciclaje o relleno |
-| 0:32 | MARPOL Anexo V: ni un plástico al mar; el manifiesto en formato MARPOL que genera SiMAR, firmado y con sello |
+| 0:32 | MARPOL Anexo V: ni un plástico al mar; el manifiesto que genera SiMAR, con sus firmas y su folio |
 | 0:41 | Don Francisco: la cita y los principios de diseño |
 | 0:47 | Conciencia azul: 1 L de aceite puede contaminar un millón de litros de agua (cubo de 10 m, a escala) |
 | 0:55 | Impacto: 742 manifiestos, 80,957 kg de basura, 125,530 L de aceite, 125.6 t de CO₂ |
 | 1:04 | Puertos: Puerto Peñasco y 8 puertos más en el globo |
-| 1:12 | Plan México: mapa de México en 3D y las metas con las que se alinea SiMAR |
+| 1:12 | Plan México: mapa de México en 3D y las metas 9 y 10, con las que SiMAR está en línea |
 | 1:20 | Cierre |
 
 ## Monitor del stand (modo kiosco)
@@ -81,22 +81,27 @@ total de 742, como en la app, pero se dejan fuera de la gráfica. Las hojas de p
 **Conciencia azul:** 1 litro de aceite puede contaminar 1,000,000 de litros de agua (1,000 m³, un
 cubo de 10 m por lado). El cubito de aceite mide 10 cm por lado, a la misma escala.
 
-**Manifiesto en formato MARPOL (escena 0:32):** es el manifiesto real `MAN22052026 001` de la base de
-DCK (embarcación Keiko II, 23 de mayo de 2026: 140 L de aceite usado, 4 filtros de aceite, 4 de diésel,
+**Manifiesto de la escena MARPOL (0:32):** es el manifiesto `MAN22052026 001` de la base de DCK
+(embarcación Keiko II, 23 de mayo de 2026: 140 L de aceite usado, 4 filtros de aceite, 4 de diésel,
 1 de aire y 120 kg de basura), dibujado con el formato del PDF que genera SiMAR
-(`lib/utils/pdfGenerator.ts`). Se omiten los nombres de las personas y el logotipo de SEMARNAT.
+(`lib/utils/pdfGenerator.ts`). Es una representación: se omiten los nombres de las personas, el
+logotipo de SEMARNAT y los números de registro y autorización del encabezado, y el sello es la marca
+de registro de SiMAR (no una certificación de MARPOL).
 
-**MARPOL 73/78, Anexo V:** reglas para prevenir la contaminación por la basura de los buques. La
-versión revisada (resolución MEPC.201(62), en vigor desde el 1 de enero de 2013) prohíbe descargar en el
-mar todo tipo de plástico. México es Parte del convenio MARPOL (adhesión de 1992) y de su Anexo V. El
-aceite usado y los residuos aceitosos corresponden al Anexo I; el formulario de SiMAR los registra junto
-con la basura.
+**MARPOL 73/78, Anexo V** (reglas para prevenir la contaminación por las basuras de los buques):
+desde 1988 prohíbe descargar plásticos al mar, incluidas las artes de pesca; la versión revisada
+(resolución MEPC.201(62), en vigor desde el 1 de enero de 2013) prohíbe en general descargar cualquier
+basura, salvo los casos previstos en el Anexo, y aplica a todos los buques, también a los pesqueros. La
+OMI recomienda entregar la basura en las instalaciones de recepción del puerto. México se adhirió al
+Anexo V en 1998. El aceite lubricante usado corresponde al Anexo I; el formulario de SiMAR lo registra
+junto con la basura. SiMAR registra las entregas; no certifica el cumplimiento de MARPOL.
 
-**Plan México:** "Estrategia de Desarrollo Económico Equitativo y Sustentable para la Prosperidad
-Compartida", presentado por el Gobierno de México el 13 de enero de 2025. Entre sus metas están la
-sostenibilidad (menos contaminación del aire y del agua), trámites más ágiles y 150 mil profesionistas y
-técnicos más cada año. La escena dice con qué metas se alinea SiMAR; **no es material oficial del Plan
-México** ni usa su identidad gráfica. El mapa es la silueta de México de world-atlas `countries-50m`
+**Plan México** ("Estrategia de Desarrollo Económico Equitativo y Sustentable para la Prosperidad
+Compartida"): lo presentó la Presidencia de la República el 13 de enero de 2025, con 13 metas. La escena
+nombra las dos con las que SiMAR está en línea: la meta 10, sostenibilidad ambiental empresarial, y la
+meta 9, 150 mil profesionistas y técnicos más cada año. **SiMAR es un proyecto independiente: la escena
+no es material oficial del Plan México** ni usa su identidad gráfica, y las cifras de SiMAR no se
+presentan como resultados del Plan. El mapa es la silueta de México de world-atlas `countries-50m`
 rasterizada a 0.2°.
 
 **Diseño:** rama `online` de [DCK_react](https://github.com/LuisMario698/DCK_react):

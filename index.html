@@ -221,8 +221,8 @@ body.sin-cursor,body.sin-cursor *{cursor:none!important}
           <p class="ln eyebrow">MARPOL 73/78 · Anexo V</p>
           <h2 class="ln h">Ni un plástico</h2>
           <h2 class="ln h g">al mar.</h2>
-          <p class="ln body">El Anexo V del convenio MARPOL prohíbe arrojar plásticos al mar. Lo que no va al mar se entrega en el puerto, y <b>SiMAR deja constancia de cada entrega.</b></p>
-          <p class="ln loc">MANIFIESTO EN FORMATO MARPOL<br>PDF LISTO PARA SEMARNAT</p>
+          <p class="ln body">El Anexo V prohíbe arrojar plásticos al mar y, salvo los casos previstos, cualquier basura. La OMI recomienda entregarla en el puerto, y <b>SiMAR registra cada entrega.</b></p>
+          <p class="ln loc">FOLIO ÚNICO · FIRMAS EN PANTALLA · PDF</p>
         </div>
       </div>
       <!-- 5 · Don Francisco -->
@@ -283,22 +283,21 @@ body.sin-cursor,body.sin-cursor *{cursor:none!important}
           <p class="ln eyebrow">Puertos</p>
           <h2 class="ln h">Hoy, <span class="kw">Puerto Peñasco.</span></h2>
           <h2 class="ln h g">Mañana, 8 puertos más.</h2>
-          <p class="ln body">En operación desde 2024 con SEMARNAT. Listo para crecer por las costas de México.</p>
+          <p class="ln body">Con respaldo de SEMARNAT. Pensado para sumar más puertos pesqueros de México.</p>
         </div>
         <div class="tags" id="portTags"></div>
       </div>
       <!-- 8b · Plan México -->
       <div class="scene" id="s-plan">
         <div class="col">
-          <p class="ln eyebrow">Desarrollo sustentable</p>
-          <h2 class="ln h">Alineado con el</h2>
+          <p class="ln eyebrow">Una iniciativa local</p>
+          <h2 class="ln h">En línea con el</h2>
           <h2 class="ln h"><span class="kw">Plan México.</span></h2>
           <div class="goals">
-            <div class="ln goal"><small>Meta · Sustentabilidad</small><b>Menos contaminación del agua</b><span>125,530 L de aceite usado recolectado en el puerto</span></div>
-            <div class="ln goal"><small>Meta · Trámites más ágiles</small><b>Del papel a lo digital</b><span>742 manifiestos digitalizados del papel</span></div>
-            <div class="ln goal"><small>Meta · Talento técnico</small><b>Hecho en Puerto Peñasco</b><span>por el ITSPP y DCK Conciencia y Cultura</span></div>
+            <div class="ln goal"><small>Meta 10 · Sostenibilidad ambiental empresarial</small><b>Residuos registrados y trazables</b><span>Aceite usado, filtros y basura de las embarcaciones del puerto</span></div>
+            <div class="ln goal"><small>Meta 9 · Talento técnico</small><b>Desarrollado en Puerto Peñasco</b><span>por el ITSPP y DCK Conciencia y Cultura</span></div>
           </div>
-          <p class="ln note">Plan México: Estrategia de Desarrollo Económico Equitativo y Sustentable para la Prosperidad Compartida (2025).</p>
+          <p class="ln note">Plan México: Estrategia de Desarrollo Económico Equitativo y Sustentable para la Prosperidad Compartida, presentada el 13 de enero de 2025. SiMAR es un proyecto independiente; esto no es material oficial del Plan México.</p>
         </div>
         <div class="tag" id="tag-plan"><div class="ln"><div class="port home"><i></i><span>Puerto Peñasco<small>Sonora · donde nace SiMAR</small></span></div></div></div>
       </div>
@@ -1379,7 +1378,7 @@ function buildTrace() {
 const SM = { bottle: 0, ring: 0, doc: 0, reveal: 0, sig: 0, seal: 0, wave: 0 };
 let marpol;
 // Manifiesto real de la base de DCK (CIAD), dibujado con el formato del PDF de SiMAR (lib/utils/pdfGenerator.ts).
-// Sin nombres de personas ni el logotipo de SEMARNAT.
+// Sin nombres de personas, el logotipo de SEMARNAT ni los números de registro y autorización del encabezado.
 const PDF_M = { folio: 'MAN22052026 001', fecha: '23/05/2026', fechaLarga: '23 de mayo de 2026', barco: 'KEIKO II', aceite: 140, fa: 4, fd: 4, fai: 1, basura: 120 };
 const PDF_W = 1100, PDF_H = 1556;   // A4 (210 × 297 mm)
 // Firmas sobre la hoja: centro x, centro y y ancho, en píxeles de la textura
@@ -1396,9 +1395,8 @@ function drawMarpolPdf() {
   if (IMGS.nombreClaro) x.drawImage(IMGS.nombreClaro, 222, 126, 230, 47.5);
   txt(x, 'SEMARNAT', 1018, 104, `800 38px ${FONT}`, ink, 'right');
   txt(x, 'CENTRO DE ACOPIO 2024 AL 2034', 1018, 140, `700 23px ${FONT}`, ink, 'right');
-  txt(x, 'Número de Registro Ambiental: ' + m.folio, 1018, 174, `400 22px ${FONT}`, ink, 'right');
-  txt(x, 'Autorización 26-30-PS-11-10-13', 1018, 202, `400 22px ${FONT}`, ink, 'right');
-  txt(x, 'Puerto Peñasco, Sonora C.P. 83500', 1018, 228, `400 22px ${FONT}`, ink, 'right');
+  txt(x, 'Folio: ' + m.folio, 1018, 180, `700 24px ${MONO}`, ink, 'right');
+  txt(x, 'Puerto Peñasco, Sonora C.P. 83500', 1018, 220, `400 22px ${FONT}`, ink, 'right');
   txt(x, 'Puerto Peñasco, Sonora a ' + m.fechaLarga, W / 2, 300, `400 28px ${FONT}`, ink, 'center');
   // Caja principal con los residuos
   x.lineWidth = 4; x.strokeRect(50, 330, 1000, 1120);
@@ -1439,9 +1437,10 @@ function drawSeal() {
   x.lineWidth = 7; x.beginPath(); x.arc(256, 256, 226, 0, 7); x.stroke();
   x.lineWidth = 2.5; x.beginPath(); x.arc(256, 256, 204, 0, 7); x.stroke();
   for (let i = 0; i < 36; i++) { const a = (i / 36) * Math.PI * 2; x.beginPath(); x.arc(256 + Math.cos(a) * 215, 256 + Math.sin(a) * 215, 2.2, 0, 7); x.fill(); }
-  txt(x, 'MARPOL', 256, 238, `800 86px ${FONT}`, '#FFFFFF', 'center');
-  txt(x, 'ANEXO V', 256, 312, `700 56px ${FONT}`, '#FFFFFF', 'center');
-  txt(x, 'FORMATO DIGITAL', 256, 364, `700 24px ${MONO}`, 'rgba(255,255,255,0.85)', 'center');
+  // Marca de registro de SiMAR (no es una certificación de MARPOL)
+  txt(x, 'SiMAR', 256, 214, `800 84px ${FONT}`, '#FFFFFF', 'center');
+  txt(x, 'REGISTRADO', 256, 292, `800 50px ${FONT}`, '#FFFFFF', 'center');
+  txt(x, PDF_M.folio, 256, 352, `700 27px ${MONO}`, 'rgba(255,255,255,0.88)', 'center');
   return canvasTex(c);
 }
 const SIG_FS = `uniform sampler2D map; uniform float uP; varying vec2 vUv;
@@ -1490,7 +1489,7 @@ function buildMarpol() {
     const m = new T3.Mesh(new T3.PlaneGeometry(sw, sw * 120 / 320), new T3.ShaderMaterial({ uniforms: { map: { value: drawSignature(500 + i * 31) }, uP: { value: 0 } }, vertexShader: SCREEN_VS, fragmentShader: SIG_FS, transparent: true, depthWrite: false, toneMapped: false }));
     toLocal(cx, cy, m.position); doc.add(m); return m;
   });
-  // Sello "MARPOL Anexo V" que se estampa sobre la hoja
+  // Sello de registro de SiMAR que se estampa sobre la hoja
   const seal = new T3.Group(); toLocal(880, 610, seal.position); doc.add(seal);
   const sealIn = new T3.Group(); seal.add(sealIn);
   const SR = 0.43;
