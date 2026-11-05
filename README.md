@@ -3,7 +3,7 @@
 Presentación animada de producto en 3D, estilo keynote, de **SiMAR** (Sistema Integral de Manejo
 Ambiental de Residuos), la plataforma de Puerto Peñasco, Sonora, que digitaliza los manifiestos de
 residuos de las embarcaciones pesqueras. La desarrollan el ITSPP y DCK Conciencia y Cultura, con
-respaldo de SEMARNAT. Sitio de la plataforma: <https://simaryisus-app.vercel.app>.
+respaldo de SEMARNAT. Sitio de la plataforma: <https://simar-app.vercel.app>.
 
 Todo vive en un solo archivo, [`index.html`](./index.html): Three.js 0.159 y GSAP 3.12 se cargan
 desde jsDelivr y las tipografías (Atkinson Hyperlegible Next y Mono) desde Google Fonts; lo demás
