@@ -5,11 +5,11 @@ Ambiental de Residuos), la plataforma de Puerto Peñasco, Sonora, que digitaliza
 residuos de las embarcaciones pesqueras. La desarrollan el ITSPP y DCK Conciencia y Cultura, con
 respaldo de SEMARNAT. Sitio de la plataforma: <https://simar-app.vercel.app>.
 
-Todo vive en un solo archivo, [`index.html`](./index.html): Three.js 0.159 y GSAP 3.12 se cargan
+Todo vive en un solo archivo, [`index.html`](./index.html) (es a la vez la fuente: se edita directamente): Three.js 0.159 y GSAP 3.12 se cargan
 desde jsDelivr y las tipografías (Atkinson Hyperlegible Next y Mono) desde Google Fonts; lo demás
 (pantallas, hojas, texturas, continentes) se genera dentro de la página.
 
-## Guion (87 s en bucle)
+## Guion (94 s en bucle)
 
 | Tiempo | Escena |
 |---|---|
@@ -23,7 +23,8 @@ desde jsDelivr y las tipografías (Atkinson Hyperlegible Next y Mono) desde Goog
 | 0:55 | Impacto: 742 manifiestos, 80,957 kg de basura, 125,530 L de aceite, 125.6 t de CO₂ |
 | 1:04 | Puertos: Puerto Peñasco y 8 puertos más en el globo |
 | 1:12 | Plan México: mapa de México en 3D y las dos metas con las que SiMAR está en línea |
-| 1:20 | Cierre |
+| 1:20 | Colaboradores: Dr. Ixtoc Marlo Rivera Núñez (CIAD), Ing. Francisco Javier Bojórquez Ochoa (DCK Puerto Peñasco), Dr. Gabriel Rivera Solis (Centro de acopio Rivera) y Dr. Aarón Rivera Núñez (Reserva de la Biosfera El Pinacate y Gran Desierto de Altar) |
+| 1:27 | Cierre |
 
 ## Monitor del stand (modo kiosco)
 
@@ -97,6 +98,8 @@ OMI recomienda entregar la basura en las instalaciones de recepción del puerto.
 Anexo V en 1998. El aceite lubricante usado corresponde al Anexo I; el formulario de SiMAR lo registra
 junto con la basura. SiMAR registra las entregas; no certifica el cumplimiento de MARPOL.
 
+**Colaboradores:** nombres, cargos y fotos del documento *Colaboradores SiMAR* que entregó el equipo.
+
 **Plan México** ("Estrategia de Desarrollo Económico Equitativo y Sustentable para la Prosperidad
 Compartida"): lo presentó la Presidencia de la República el 13 de enero de 2025, con 13 metas. La escena
 nombra las dos con las que SiMAR está en línea: sostenibilidad ambiental empresarial y talento técnico
@@ -116,6 +119,28 @@ rasterizada a 0.2°.
 
 Los continentes del globo son [world-atlas](https://github.com/topojson/world-atlas) `land-50m`
 rasterizado a 0.5° e incrustado en el HTML como una máscara de bits (base64).
+
+## Imagen y efectos
+
+- **Posproceso de cine** escrito a mano sobre Three.js r159 (sin complementos): escena en HDR con
+  MSAA, bloom por cadena de mips (Jimenez 2014), profundidad de campo con enfoque en el objetivo de
+  cada toma (bokeh de 22 muestras a media resolución), desenfoque de movimiento de cámara por
+  reproyección de profundidad, viñeta, grano y gradación.
+- **Sombras suaves** que siguen a la escena activa (manifiestos, laptop, trazabilidad y MARPOL).
+- Cada escena aparece cuando entra en cuadro (sin saltos) y el fondo azul del cubo se desvanece.
+- Todo depende sólo del tiempo de la línea: ir y volver da el mismo cuadro (`tools/seekcheck.js`).
+- **Calidad adaptable:** si el equipo no sostiene la fluidez, baja la resolución y luego, en orden,
+  el MSAA, las muestras del desenfoque de movimiento, la profundidad de campo y las sombras.
+
+## Herramientas de prueba (`tools/`, no se publican)
+
+Necesitan Playwright y una carpeta con `three@0.159.0` y `gsap@3.12.5` instalados por npm:
+
+```bash
+node tools/shoot.js index.html <deps> capturas 10,30,84 1600   # capturas en esos segundos
+node tools/seekcheck.js index.html <deps>                      # mismo cuadro al ir y volver
+node tools/objshot.js modulo.js salida "30,15,5,0"             # banco para modelar un objeto 3D
+```
 
 ## Correr en local
 

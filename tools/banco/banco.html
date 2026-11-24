@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><title>Banco de pruebas 3D</title>
+<style>html,body{margin:0;background:#03070D;overflow:hidden}canvas{display:block}</style></head>
+<body>
+<script src="three.min.js"></script>
+<script>
+// Banco para modelar un objeto con la iluminación de estudio de la keynote.
+// banco.html?m=modulo.js&az=30&el=18&dist=6&ty=0.6&t=1.5&w=1280&h=720
+// El módulo define window.buildObject(T3, ctx) → { object, update(t)?, target?: [x,y,z], dist? }
+(function () {
+  const q = new URLSearchParams(location.search), num = (k, d) => (q.has(k) ? parseFloat(q.get(k)) : d);
+  const W = num('w', 1280), H = num('h', 720), T3 = THREE;
+  const COL = { bg: '#03070D', aqua: '#7FE0D4', teal: '#2BB3A8', tide: '#1B5FC9', sky: '#8FB4FF', amber: '#F2B84B' };
+  const renderer = new T3.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+  renderer.setPixelRatio(1); renderer.setSize(W, H); renderer.setClearColor(COL.bg, 1);
+  renderer.toneMapping = T3.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.05; renderer.outputColorSpace = T3.SRGBColorSpace;
+  renderer.shadowMap.enabled = true; renderer.shadowMap.type = T3.PCFSoftShadowMap;
+  document.body.appendChild(renderer.domElement);
+  const scene = new T3.Scene(); scene.background = new T3.Color(COL.bg);
+  const env = new T3.Scene();
+  env.add(new T3.Mesh(new T3.BoxGeometry(24, 24, 24), new T3.MeshBasicMaterial({ color: 0x080d14, side: T3.BackSide })));
+  const panel = (w, h, color, k, p) => { const m = new T3.Mesh(new T3.PlaneGeometry(w, h), new T3.MeshBasicMaterial({ color: new T3.Color(color).multiplyScalar(k), side: T3.DoubleSide })); m.position.set(p[0], p[1], p[2]); m.lookAt(0, 0, 0); env.add(m); };
+  panel(10, 5, 0xffffff, 5.0, [0, 11, 2]); panel(2.4, 12, 0xffffff, 3.2, [-11, 2, 3]); panel(2.4, 12, 0xffffff, 2.2, [11, 1, -2]);
+  panel(8, 3, COL.aqua, 2.6, [-5, 3, -11]); panel(8, 3, COL.tide, 3.4, [6, 0, -11]); panel(14, 2, 0xffffff, 1.2, [0, -3, 11]);
+  const pm = new T3.PMREMGenerator(renderer); scene.environment = pm.fromScene(env, 0.035).texture; pm.dispose();
+  const key = new T3.DirectionalLight(0xffffff, 2.3); key.position.set(4, 8, 7); scene.add(key);
+  key.castShadow = true; key.shadow.mapSize.set(2048, 2048); Object.assign(key.shadow.camera, { left: -6, right: 6, top: 6, bottom: -6, near: 0.5, far: 30 }); key.shadow.camera.updateProjectionMatrix(); key.shadow.bias = -0.0004; key.shadow.normalBias = 0.02;
+  const rim = new T3.DirectionalLight(new T3.Color(COL.aqua), 3.0); rim.position.set(-6, 4, -8); scene.add(rim);
+  scene.add(new T3.HemisphereLight(0x8FB4FF, 0x03070D, 0.35));
+  const c = document.createElement('canvas'); c.width = c.height = 512; const x = c.getContext('2d');
+  const g = x.createRadialGradient(256, 256, 0, 256, 256, 256); g.addColorStop(0, '#0d1826'); g.addColorStop(1, '#03070D'); x.fillStyle = g; x.fillRect(0, 0, 512, 512);
+  const ft = new T3.CanvasTexture(c); ft.colorSpace = T3.SRGBColorSpace;
+  const floor = new T3.Mesh(new T3.PlaneGeometry(40, 40), new T3.MeshBasicMaterial({ map: ft, toneMapped: false })); floor.rotation.x = -Math.PI / 2; scene.add(floor);
+  const sp = new T3.Mesh(new T3.PlaneGeometry(40, 40), new T3.ShadowMaterial({ opacity: 0.45 })); sp.rotation.x = -Math.PI / 2; sp.position.y = 0.002; sp.receiveShadow = true; scene.add(sp);
+  const camera = new T3.PerspectiveCamera(35, W / H, 0.05, 200);
+  window.__ctx = { T3, scene, renderer, camera, COL, key, rim };
+  const s = document.createElement('script'); s.src = q.get('m');
+  s.onload = () => {
+    try {
+      const res = window.buildObject(T3, window.__ctx) || {}; const obj = res.object || res; scene.add(obj);
+      obj.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+      const tgt = res.target || [0, 0.6, 0], az = num('az', 30) * Math.PI / 180, el = num('el', 15) * Math.PI / 180, d = num('dist', res.dist || 6), ty = num('ty', tgt[1]);
+      camera.position.set(tgt[0] + Math.sin(az) * Math.cos(el) * d, ty + Math.sin(el) * d, tgt[2] + Math.cos(az) * Math.cos(el) * d); camera.lookAt(tgt[0], ty, tgt[2]);
+      if (res.update) res.update(num('t', 0));
+      renderer.render(scene, camera);
+    } catch (e) { window.__error = String(e && e.stack || e); }
+    window.__ready = true;
+  };
+  s.onerror = () => { window.__error = 'no se pudo cargar el módulo'; window.__ready = true; };
+  document.body.appendChild(s);
+})();
+</script></body></html>
