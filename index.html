@@ -1299,42 +1299,602 @@ function buildTransfer() {
    ===================================================================== */
 const S4 = { line: 0, lit0: 0, lit1: 0, lit2: 0 };
 let trace;
+/* =====================================================================
+   Barco camaronero del Alto Golfo de California (≈22 m de eslora)
+   Casco loftado desde secciones transversales a un BufferGeometry propio.
+   Ejes: X = eslora (proa hacia +X), Y = altura (quilla en y = 0), Z = manga.
+   ===================================================================== */
+// (Solo declaraciones de función: se elevan y pueden llamarse desde cualquier punto del script)
+function boat_c01(v) { return Math.min(1, Math.max(0, v)); }
+function boat_ss(a, b, v) { const t = boat_c01((v - a) / (b - a)); return t * t * (3 - 2 * t); }
+
+// Parámetros de la sección a lo largo de la eslora (u: 0 = espejo de popa, 1 = roda)
+function boat_sec(u) {
+  // Arrufo: casi plano a popa y subiendo con fuerza hacia la proa
+  const s = u < 0.35 ? 0.31 + 0.022 * Math.pow(1 - u / 0.35, 2) : 0.31 + 0.14 * Math.pow((u - 0.35) / 0.65, 2);
+  const bw = 0.046 + 0.022 * boat_c01((u - 0.6) / 0.4);           // altura de la amurada
+  let k = 0.03;                                                       // línea de quilla
+  if (u < 0.14) k += 0.09 * Math.pow((0.14 - u) / 0.14, 1.6);         // corte de popa (codaste)
+  if (u > 0.78) k += 0.12 * Math.pow((u - 0.78) / 0.22, 2.2);         // pie de roda
+  const H = 0.27;                                                     // media manga máxima en cubierta
+  let wd, wb;                                                         // media manga en cubierta y en el pantoque
+  if (u < 0.3) { const e = Math.sin((u / 0.3) * Math.PI / 2); wd = H * (0.84 + 0.16 * e); wb = H * (0.70 + 0.22 * e); }
+  else { wd = H; wb = H * 0.92; }
+  if (u > 0.55) wd = H * Math.sqrt(Math.max(0, 1 - Math.pow((u - 0.55) / 0.45, 2)));
+  if (u > 0.5) wb = H * 0.92 * Math.pow(Math.max(0, 1 - Math.pow((u - 0.5) / 0.5, 2)), 1.1);
+  const n = 3.2 - 1.7 * boat_ss(0.45, 1.0, u);                        // pantoque redondo a popa, en V a proa
+  const zb = Math.max(k + 0.04, 0.17);                                // altura donde termina el pantoque
+  return { s, bw, k, wd, wb, n, zb };
+}
+// Posición longitudinal: espejo inclinado hacia popa y roda lanzada hacia proa
+function boat_x(u, y) {
+  const xa = -0.93 - 0.03 * boat_c01((y - 0.12) / 0.25);
+  const xf = 0.77 + 0.18 * Math.pow(boat_c01((y - 0.03) / 0.42), 1.5);
+  return xa + (xf - xa) * u;
+}
+// Media manga exterior del costado a una altura y (por encima del pantoque)
+function boat_outZ(p, y) {
+  const t = boat_c01((y - p.zb) / (p.s - p.zb));
+  return p.wb + (p.wd - p.wb) * Math.pow(t, 1.7);
+}
+// Sección en la cuaderna que pasa por x (medida a la altura de cubierta)
+function boat_station(x) {
+  let u = 0.5, p;
+  for (let i = 0; i < 8; i++) {
+    p = boat_sec(u); const y = p.s - p.bw;
+    const xa = boat_x(0, y), xf = boat_x(1, y);
+    u = boat_c01((x - xa) / (xf - xa));
+  }
+  p = boat_sec(u); p.u = u; p.dk = p.s - p.bw; p.wi = Math.max(boat_outZ(p, p.dk) - 0.012, 0);
+  return p;
+}
+function boat_deckY(x) { return boat_station(x).dk; }
+// Punto sobre la regala (cara interior) en una x dada
+function boat_rail(x, s) { const p = boat_station(x); return V3(x, p.s, s * Math.max(p.wd - 0.008, 0)); }
+// Anillo cerrado de la sección: crujía de cubierta → estribor → quilla → babor
+function boat_ring(u) {
+  const p = boat_sec(u), half = [];
+  const dk = p.s - p.bw, wi = Math.max(boat_outZ(p, dk) - 0.012, 0), wt = Math.max(p.wd - 0.012, 0);
+  for (let i = 0; i <= 5; i++) { const f = i / 5; half.push([wi * f, dk + 0.006 * (1 - f * f)]); }   // cubierta con brusca
+  half.push([wt, p.s]);                                             // cara interior de la amurada (paralela al abanico)
+  half.push([p.wd, p.s]);                                           // regala
+  for (let j = 1; j <= 7; j++) {                                    // costado con abanico (flare)
+    const t = 1 - j / 7;
+    half.push([p.wb + (p.wd - p.wb) * Math.pow(t, 1.7), p.zb + (p.s - p.zb) * t]);
+  }
+  for (let j = 1; j <= 10; j++) {                                   // pantoque superelíptico
+    const th = (Math.PI / 2) * (1 - j / 10), sn = Math.sin(th), cs = Math.cos(th);
+    half.push([p.wb * Math.pow(sn, 2 / p.n), p.k + (p.zb - p.k) * (1 - Math.pow(cs, 2 / p.n))]);
+  }
+  const ring = half.map(([z, y]) => V3(boat_x(u, y), y, z));
+  for (let m = half.length - 2; m >= 1; m--) { const [z, y] = half[m]; ring.push(V3(boat_x(u, y), y, -z)); }
+  return ring;
+}
+// Quilla de barra, codaste y roda en una sola pieza que sigue el perfil del casco
+function boat_keelGeometry() {
+  const bot = [], top = [];
+  bot.push([-0.80, 0.0]); top.push([-0.80, boat_sec(0.075).k + 0.035]);
+  for (let i = 0; i <= 30; i++) {
+    const u = 0.12 + 0.88 * i / 30, p = boat_sec(u), x = boat_x(u, p.k);
+    const dep = 0.03 - 0.024 * boat_ss(0.78, 1.0, u);
+    bot.push([x, p.k - dep]); top.push([x - 0.004, p.k + 0.025]);
+  }
+  const p1 = boat_sec(1), stem = [], stemIn = [];
+  for (let i = 1; i <= 10; i++) {
+    const y = p1.k + (p1.s + 0.004 - p1.k) * i / 10, x = boat_x(1, y);
+    stem.push([x + 0.006, y]); stemIn.push([x - 0.03, y]);
+  }
+  const pts = bot.concat(stem, stemIn.reverse(), top.reverse());
+  const sh = new T3.Shape(); sh.moveTo(pts[0][0], pts[0][1]); for (let i = 1; i < pts.length; i++) sh.lineTo(pts[i][0], pts[i][1]);
+  const g = new T3.ExtrudeGeometry(sh, { depth: 0.012, bevelEnabled: true, bevelThickness: 0.002, bevelSize: 0.002, bevelSegments: 1, curveSegments: 2 });
+  g.translate(0, 0, -0.006);
+  return creaseNormals(g, 40);
+}
+function boat_hullGeometry() {
+  const N = 84, rings = [];
+  for (let i = 0; i <= N; i++) { const t = i / N; rings.push(boat_ring(0.55 * t + 0.45 * (0.5 - 0.5 * Math.cos(Math.PI * t)))); }
+  const R = rings[0].length, hull = [], deck = [];
+  const isDeck = (j) => j <= 4 || j >= R - 5;
+  const put = (arr, a, b, c) => { arr.push(a.x, a.y, a.z, b.x, b.y, b.z, c.x, c.y, c.z); };
+  for (let i = 0; i < N; i++) {
+    const A = rings[i], B = rings[i + 1];
+    for (let j = 0; j < R; j++) {
+      const j2 = (j + 1) % R, arr = isDeck(j) ? deck : hull;
+      put(arr, A[j], B[j], B[j2]); put(arr, A[j], B[j2], A[j2]);
+    }
+  }
+  // Espejo de popa: polígono triangulado
+  const tr = rings[0], cont = tr.map((v) => new T3.Vector2(v.z, v.y));
+  for (const [a, b, c] of T3.ShapeUtils.triangulateShape(cont, [])) {
+    const va = tr[a], vb = tr[b], vc = tr[c];
+    const nx = (vb.y - va.y) * (vc.z - va.z) - (vb.z - va.z) * (vc.y - va.y);
+    if (nx < 0) put(hull, va, vb, vc); else put(hull, va, vc, vb);
+  }
+  // Orientación: la cubierta debe mirar hacia arriba
+  const a = V3(deck[0], deck[1], deck[2]), b = V3(deck[3], deck[4], deck[5]), c = V3(deck[6], deck[7], deck[8]);
+  const flip = b.clone().sub(a).cross(c.clone().sub(a)).y < 0;
+  const fix = (arr) => { if (!flip) return arr; for (let k = 0; k < arr.length; k += 9) for (let q = 0; q < 3; q++) { const t = arr[k + 3 + q]; arr[k + 3 + q] = arr[k + 6 + q]; arr[k + 6 + q] = t; } return arr; };
+  const all = new Float32Array(fix(hull).concat(fix(deck)));
+  const g = new T3.BufferGeometry(); g.setAttribute('position', new T3.BufferAttribute(all, 3));
+  g.addGroup(0, hull.length / 3, 0); g.addGroup(hull.length / 3, deck.length / 3, 1);
+  return creaseNormals(g, 38);
+}
+// Material del casco: blanco, franja de flotación azul oscuro y fondo antiincrustante rojo (cortes nítidos por altura)
+function boat_hullMat() {
+  const WL = 0.150, BT = 0.186;   // línea de flotación y borde superior de la franja azul
+  const m = new T3.MeshPhysicalMaterial({ color: '#eef2f5', roughness: 0.3, clearcoat: 1, clearcoatRoughness: 0.1 });
+  m.onBeforeCompile = (sh) => {
+    sh.uniforms.uBot = { value: new T3.Color('#a3282c') }; sh.uniforms.uBoot = { value: new T3.Color('#0c2350') };
+    sh.uniforms.uWl = { value: WL }; sh.uniforms.uBt = { value: BT };
+    sh.vertexShader = 'varying float vHY;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n  vHY = position.y;');
+    sh.fragmentShader = 'uniform vec3 uBot;\nuniform vec3 uBoot;\nuniform float uWl;\nuniform float uBt;\nvarying float vHY;\n' + sh.fragmentShader.replace('#include <color_fragment>',
+      '#include <color_fragment>\n  float fw = max(fwidth(vHY), 1e-4);\n  diffuseColor.rgb = mix(uBot, mix(uBoot, diffuseColor.rgb, smoothstep(uBt - fw, uBt + fw, vHY)), smoothstep(uWl - fw, uWl + fw, vHY));');
+  };
+  m.customProgramCacheKey = () => 'simar-casco-camaronero';
+  return m;
+}
+// Prisma: perfil lateral (plano XY) extruido a lo ancho (Z)
+function boat_prism(pts, w, b) {
+  const sh = new T3.Shape(); sh.moveTo(pts[0][0], pts[0][1]); for (let i = 1; i < pts.length; i++) sh.lineTo(pts[i][0], pts[i][1]);
+  const g = new T3.ExtrudeGeometry(sh, { depth: w - 2 * b, bevelEnabled: b > 0, bevelThickness: b, bevelSize: b, bevelSegments: 2, curveSegments: 4 });
+  g.translate(0, 0, -(w - 2 * b) / 2);
+  return creaseNormals(g.toNonIndexed ? (g.index ? g.toNonIndexed() : g) : g, 40);
+}
+// Barra/tubo entre dos puntos
+function boat_rod(p0, p1, r0, r1, seg, mat) {
+  const d = V3().subVectors(p1, p0), L = d.length();
+  const m = new T3.Mesh(new T3.CylinderGeometry(r1, r0, L, seg || 10), mat);
+  m.position.copy(p0).addScaledVector(d, 0.5); m.quaternion.setFromUnitVectors(V3(0, 1, 0), d.normalize());
+  return m;
+}
+// Jarcia: cable fino entre puntos (con una leve catenaria opcional)
+function boat_cable(pts, r, mat, sag) {
+  let curve;
+  if (pts.length === 2 && sag) {
+    const mid = pts[0].clone().lerp(pts[1], 0.5); mid.y -= sag;
+    curve = new T3.QuadraticBezierCurve3(pts[0], mid, pts[1]);
+  } else curve = pts.length === 2 ? new T3.LineCurve3(pts[0], pts[1]) : new T3.CatmullRomCurve3(pts);
+  return new T3.Mesh(new T3.TubeGeometry(curve, pts.length === 2 && !sag ? 1 : 12, r, 5, false), mat);
+}
+
 function buildBoat() {
   const g = new T3.Group();
-  const hs = new T3.Shape();
-  hs.moveTo(-0.72, 0.03); hs.lineTo(0.42, 0.0); hs.quadraticCurveTo(0.8, 0.05, 0.94, 0.42); hs.lineTo(-0.82, 0.36); hs.lineTo(-0.72, 0.03);
-  const hg = new T3.ExtrudeGeometry(hs, { depth: 0.44, bevelEnabled: true, bevelThickness: 0.04, bevelSize: 0.035, bevelSegments: 3, curveSegments: 16 });
-  hg.translate(0, 0, -0.22); creaseNormals(hg, 45);
-  const hull = new T3.Mesh(hg, new T3.MeshPhysicalMaterial({ color: COL.tide, metalness: 0.35, roughness: 0.28, clearcoat: 1 })); g.add(hull);
-  const white = new T3.MeshPhysicalMaterial({ color: '#eef3f7', roughness: 0.3, clearcoat: 1 });
-  const dark = new T3.MeshPhysicalMaterial({ color: '#0a121b', roughness: 0.08, clearcoat: 1 });
-  const metal = new T3.MeshPhysicalMaterial({ color: '#cfd6de', metalness: 1, roughness: 0.25 });
-  const deck = new T3.Mesh(new T3.BoxGeometry(1.62, 0.05, 0.5), white); deck.position.set(0.04, 0.41, 0); g.add(deck);
-  const cab = new T3.Mesh(new T3.BoxGeometry(0.46, 0.32, 0.38), white); cab.position.set(-0.3, 0.6, 0); g.add(cab);
-  const win = new T3.Mesh(new T3.BoxGeometry(0.47, 0.08, 0.39), dark); win.position.set(-0.3, 0.67, 0); g.add(win);
-  const mast = new T3.Mesh(new T3.CylinderGeometry(0.022, 0.026, 0.95, 12), metal); mast.position.set(0.12, 0.88, 0); g.add(mast);
-  for (const s of [-1, 1]) {
-    const boom = new T3.Mesh(new T3.CylinderGeometry(0.014, 0.014, 0.95, 8), metal);
-    boom.position.set(0.12, 0.95, s * 0.36); boom.rotation.x = s * 0.95; g.add(boom);
-    const net = new T3.Mesh(new T3.SphereGeometry(0.05, 12, 8), new T3.MeshPhysicalMaterial({ color: COL.amber, roughness: 0.4 })); net.position.set(0.12, 1.25, s * 0.74); g.add(net);
+  const white = new T3.MeshPhysicalMaterial({ color: '#eef2f5', roughness: 0.32, clearcoat: 1, clearcoatRoughness: 0.12 });
+  const deckM = new T3.MeshPhysicalMaterial({ color: '#56646f', roughness: 0.7, clearcoat: 0.15 });
+  const glass = new T3.MeshPhysicalMaterial({ color: '#0a121b', roughness: 0.06, metalness: 0.2, clearcoat: 1, clearcoatRoughness: 0.03 });
+  const steel = new T3.MeshPhysicalMaterial({ color: '#cfd6de', metalness: 1, roughness: 0.28 });
+  const dark = new T3.MeshPhysicalMaterial({ color: '#26313c', roughness: 0.45, clearcoat: 0.6 });
+  const wood = new T3.MeshPhysicalMaterial({ color: '#5a4636', roughness: 0.7, clearcoat: 0.2 });
+  const navy = new T3.MeshPhysicalMaterial({ color: '#0c2350', roughness: 0.3, clearcoat: 1 });
+  const cable = new T3.MeshPhysicalMaterial({ color: '#b9c2cb', metalness: 0.8, roughness: 0.35 });
+  // Textura de malla de red (rombos) generada en canvas
+  const [nc, nx] = makeCanvas(128, 128);
+  nx.fillStyle = '#ffffff'; nx.fillRect(0, 0, 128, 128); nx.strokeStyle = '#5a5a5a'; nx.lineWidth = 5;
+  for (let k = -128; k <= 256; k += 32) { nx.beginPath(); nx.moveTo(k, 0); nx.lineTo(k + 128, 128); nx.stroke(); nx.beginPath(); nx.moveTo(k, 128); nx.lineTo(k + 128, 0); nx.stroke(); }
+  const netTex = canvasTex(nc); netTex.wrapS = netTex.wrapT = T3.RepeatWrapping; netTex.repeat.set(9, 6);
+  const netM = new T3.MeshPhysicalMaterial({ color: COL.amber, map: netTex, bumpMap: netTex, bumpScale: 0.6, roughness: 0.8 });
+  const tealM = new T3.MeshPhysicalMaterial({ color: COL.teal, roughness: 0.3, clearcoat: 1 });
+
+  // --- Casco ---
+  const hull = new T3.Mesh(boat_hullGeometry(), [boat_hullMat(), deckM]); g.add(hull);
+  // Verduguillo continuo bajo la regala (estribor → espejo → babor)
+  {
+    const pts = [], side = [];
+    for (let i = 0; i <= 24; i++) {
+      const u = 0.985 * (1 - i / 24), p = boat_sec(u), y = p.s - 0.014;
+      const t = boat_c01((y - p.zb) / (p.s - p.zb));
+      side.push([u, y, p.wb + (p.wd - p.wb) * Math.pow(t, 1.7) + 0.003]);
+    }
+    for (const [u, y, z] of side) pts.push(V3(boat_x(u, y), y, z));
+    const [u0, y0, z0] = side[side.length - 1];
+    pts.push(V3(boat_x(0, y0) - 0.004, y0, z0 * 0.5), V3(boat_x(0, y0) - 0.004, y0, -z0 * 0.5));
+    for (let i = side.length - 1; i >= 0; i--) { const [u, y, z] = side[i]; pts.push(V3(boat_x(u, y), y, -z)); }
+    g.add(new T3.Mesh(new T3.TubeGeometry(new T3.CatmullRomCurve3(pts, false, 'centripetal'), 180, 0.0065, 6, false), navy));
   }
-  g.position.set(-0.06, -0.55, 0);
+  // Quilla, codaste y timón
+  {
+    const hm = hull.material[0];
+    g.add(new T3.Mesh(boat_keelGeometry(), hm));
+    const rud = new T3.Mesh(boat_prism([[-0.905, 0.012], [-0.862, 0.012], [-0.862, 0.128], [-0.905, 0.122]], 0.012, 0.003), hm); g.add(rud);
+    g.add(boat_rod(V3(-0.886, 0.004, 0), V3(-0.79, 0.004, 0), 0.005, 0.005, 8, hm));   // talón del timón
+    const hub = new T3.Mesh(new T3.CylinderGeometry(0.011, 0.015, 0.03, 14), steel); hub.rotation.z = Math.PI / 2; hub.position.set(-0.832, 0.06, 0); g.add(hub);
+    for (let k = 0; k < 4; k++) {
+      const bl = new T3.Mesh(new T3.BoxGeometry(0.006, 0.038, 0.02), steel); const a = k * Math.PI / 2 + 0.4;
+      bl.position.set(-0.832, 0.06 + Math.cos(a) * 0.024, Math.sin(a) * 0.024); bl.rotation.x = -a; bl.rotateY(0.5); g.add(bl);
+    }
+  }
+
+  // --- Superestructura (caseta a proa) ---
+  const dkF = boat_deckY(0.5), dkA = boat_deckY(0.06);
+  const yH = 0.475, yW = 0.625;                       // techo de la caseta baja y del puente
+  const lowH = new T3.Mesh(boat_prism([[0.06, dkA - 0.012], [0.5, dkF - 0.012], [0.488, yH], [0.06, yH]], 0.34, 0.008), white); g.add(lowH);
+  const ledge = new T3.Mesh(boat_prism([[0.045, yH - 0.008], [0.505, yH - 0.008], [0.505, yH + 0.004], [0.045, yH + 0.004]], 0.38, 0.003), white); g.add(ledge);
+  // Puente con parabrisas inclinado hacia proa y banda de ventanas oscura
+  const fx = (y) => 0.462 + (y - yH) / (yW - yH) * 0.042;
+  const bridge = new T3.Mesh(boat_prism([[0.2, yH], [fx(yH), yH], [fx(yW), yW], [0.2, yW]], 0.32, 0.007), white); g.add(bridge);
+  const w0 = 0.528, w1 = 0.598;
+  const band = new T3.Mesh(boat_prism([[0.19, w0], [fx(w0) + 0.0075, w0], [fx(w1) + 0.0075, w1], [0.19, w1]], 0.327, 0.003), glass); g.add(band);
+  // Montantes de las ventanas
+  for (const zz of [-0.1, -0.035, 0.035, 0.1]) {
+    const mu = new T3.Mesh(new T3.BoxGeometry(0.006, 0.074, 0.008), white);
+    mu.position.set((fx(w0) + fx(w1)) / 2 + 0.0115, (w0 + w1) / 2, zz); mu.rotation.z = -Math.atan2(0.042, yW - yH); g.add(mu);
+  }
+  for (const s of [-1, 1]) for (const xx of [0.29, 0.38]) {
+    const mu = new T3.Mesh(new T3.BoxGeometry(0.008, 0.074, 0.006), white); mu.position.set(xx, (w0 + w1) / 2, s * 0.1665); g.add(mu);
+  }
+  const roof = new T3.Mesh(boat_prism([[0.185, yW - 0.004], [fx(yW) + 0.03, yW - 0.004], [fx(yW) + 0.026, yW + 0.014], [0.185, yW + 0.014]], 0.35, 0.004), white); g.add(roof);
+  // Ojos de buey y puerta de la caseta baja
+  for (const s of [-1, 1]) for (const xx of [0.2, 0.28, 0.36, 0.44]) {
+    const ph = new T3.Mesh(new T3.CylinderGeometry(0.0115, 0.0115, 0.01, 18), glass); ph.rotation.x = Math.PI / 2; ph.position.set(xx, 0.41, s * 0.176); g.add(ph);
+  }
+  const door = new T3.Mesh(boat_prism([[0.04, dkA + 0.005], [0.06, dkA + 0.005], [0.06, 0.44], [0.04, 0.44]], 0.075, 0.004), dark); door.position.z = 0.08; g.add(door);
+  // Salvavidas
+  for (const s of [-1, 1]) {
+    const lr = new T3.Mesh(new T3.TorusGeometry(0.026, 0.0075, 10, 28), new T3.MeshPhysicalMaterial({ color: '#f07a32', roughness: 0.4, clearcoat: 1 }));
+    lr.position.set(0.105, 0.41, s * 0.177); g.add(lr);
+  }
+  // Mástil de radar, radar, antenas y reflector sobre el puente
+  const yR = yW + 0.014;
+  g.add(boat_rod(V3(0.3, yR, 0), V3(0.3, yR + 0.075, 0), 0.007, 0.006, 10, white));
+  const radar = new T3.Mesh(boat_prism([[-0.012, -0.007], [0.012, -0.007], [0.012, 0.007], [-0.012, 0.007]], 0.15, 0.003), white);
+  radar.position.set(0.3, yR + 0.085, 0); radar.rotation.y = 0.6; g.add(radar);
+  for (const s of [-1, 1]) g.add(boat_rod(V3(0.24, yR, s * 0.12), V3(0.24, yR + 0.17, s * 0.12), 0.0035, 0.0018, 6, steel));
+  const sl = new T3.Mesh(new T3.CylinderGeometry(0.014, 0.012, 0.022, 16), steel); sl.rotation.z = Math.PI / 2; sl.position.set(0.46, yR + 0.014, 0.1); g.add(sl);
+  // Chimenea inclinada a popa, con banda turquesa y remate oscuro
+  {
+    const fs = rrShape(0.075, 0.056, 0.024);
+    const mk = (y0, y1, m) => {
+      const fg = new T3.ExtrudeGeometry(fs, { depth: y1 - y0, bevelEnabled: false, curveSegments: 6 });
+      fg.rotateX(-Math.PI / 2); fg.translate(0, y0, 0);
+      const p = fg.attributes.position; for (let i = 0; i < p.count; i++) p.setX(i, p.getX(i) - (p.getY(i) - yH) * 0.28);
+      const me = new T3.Mesh(creaseNormals(fg.index ? fg.toNonIndexed() : fg, 40), m); me.position.x = 0.125; g.add(me);
+    };
+    mk(yH - 0.01, 0.6, white); mk(0.6, 0.628, tealM); mk(0.628, 0.672, white); mk(0.672, 0.69, dark);
+  }
+
+  // --- Mástil, cruceta y tangones ---
+  const mx = 0.02, mTop = 1.24, yPiv = 0.46;
+  g.add(boat_rod(V3(mx, dkA - 0.02, 0), V3(mx, mTop, 0), 0.017, 0.011, 14, white));
+  g.add(boat_rod(V3(mx, mTop, 0), V3(mx, mTop + 0.012, 0), 0.016, 0.016, 14, dark));       // tope con luz
+  const yCT = 1.06;
+  g.add(boat_rod(V3(mx, yCT, -0.19), V3(mx, yCT, 0.19), 0.008, 0.008, 8, white));            // cruceta
+  for (const s of [-1, 1]) g.add(boat_rod(V3(mx, yCT - 0.09, 0), V3(mx, yCT, s * 0.1), 0.004, 0.004, 6, white));
+  g.add(boat_rod(V3(mx, yPiv - 0.02, -0.075), V3(mx, yPiv - 0.02, 0.075), 0.012, 0.012, 10, dark)); // soporte de los tangones
+  // Tangones abiertos ~38° sobre la horizontal
+  const tips = [];
+  for (const s of [-1, 1]) {
+    const piv = V3(mx, yPiv, s * 0.07), ang = 38 * D2R, L = 0.84;
+    const dir = V3(-0.05, Math.sin(ang), s * Math.cos(ang)).normalize();
+    const tip = piv.clone().addScaledVector(dir, L); tips.push(tip);
+    g.add(boat_rod(piv, tip, 0.012, 0.0065, 10, steel));
+    const blk = new T3.Mesh(new T3.SphereGeometry(0.011, 12, 8), dark); blk.position.copy(tip); g.add(blk);
+    // Vientos: amantillo al tope, cruceta, proa y popa
+    g.add(boat_cable([V3(mx, mTop - 0.02, 0), tip], 0.0028, cable));
+    g.add(boat_cable([V3(mx, yCT, s * 0.19), tip], 0.0024, cable));
+    const fwd = boat_rail(0.6, s), aft = boat_rail(-0.84, s);
+    g.add(boat_cable([tip, fwd], 0.0022, cable)); g.add(boat_cable([tip, aft], 0.0022, cable));
+    // Cable de arrastre desde el winche hasta el motón del tangón
+    g.add(boat_cable([V3(-0.1, 0.33, s * 0.06), tip], 0.0026, cable));
+    // Puerta de arrastre colgada bajo el motón (tabla con zapata)
+    const dPos = tip.clone().add(V3(0, -0.14, s * 0.012));
+    const dg = new T3.Mesh(boat_prism([[-0.075, -0.038], [0.075, -0.038], [0.075, 0.038], [-0.075, 0.038]], 0.012, 0.004), wood);
+    dg.position.copy(dPos); g.add(dg);
+    const shoe = new T3.Mesh(boat_prism([[-0.078, -0.046], [0.078, -0.046], [0.074, -0.034], [-0.074, -0.034]], 0.016, 0.003), steel);
+    shoe.position.copy(dPos); g.add(shoe);
+    for (const xx of [-0.045, 0, 0.045]) {   // flejes de acero
+      const st = new T3.Mesh(boat_prism([[xx - 0.006, -0.036], [xx + 0.006, -0.036], [xx + 0.006, 0.036], [xx - 0.006, 0.036]], 0.0145, 0.002), steel);
+      st.position.copy(dPos); g.add(st);
+    }
+    for (const xx of [-0.05, 0.05]) g.add(boat_cable([tip, dPos.clone().add(V3(xx, 0.038, 0))], 0.0018, cable));
+    // Red recogida colgando del tangón
+    const np = piv.clone().addScaledVector(dir, L * 0.6);
+    const prof = [];
+    for (let i = 0; i <= 22; i++) {
+      const t = i / 22, r = 0.004 + 0.03 * Math.pow(Math.sin(Math.PI * Math.pow(t, 0.62)), 0.75) * (1 + 0.07 * Math.sin(t * 19));
+      prof.push(new T3.Vector2(i === 0 || i === 22 ? 0 : r, -t * 0.27));
+    }
+    const net = new T3.Mesh(new T3.LatheGeometry(prof, 20), netM); net.position.copy(np).add(V3(0, -0.015, 0)); net.rotation.z = s * 0.04; g.add(net);
+  }
+  // Estays del mástil: a la roda y obenques a las bandas
+  const stem = V3(0.93, boat_sec(1).s + 0.01, 0);
+  g.add(boat_cable([V3(mx, mTop - 0.03, 0), stem], 0.0024, cable));
+  for (const s of [-1, 1]) g.add(boat_cable([V3(mx, yCT, s * 0.19), boat_rail(-0.05, s)], 0.0022, cable));
+
+  // --- Cubierta de trabajo ---
+  // Winche de doble tambor
+  {
+    const wx = -0.1, wy = boat_deckY(wx);
+    const base = new T3.Mesh(boat_prism([[wx - 0.05, wy - 0.01], [wx + 0.05, wy - 0.01], [wx + 0.04, wy + 0.025], [wx - 0.04, wy + 0.025]], 0.2, 0.004), dark); g.add(base);
+    const dr = new T3.Mesh(new T3.CylinderGeometry(0.03, 0.03, 0.17, 20), navy); dr.rotation.x = Math.PI / 2; dr.position.set(wx, wy + 0.06, 0); g.add(dr);
+    for (const zz of [-0.088, 0, 0.088]) { const fl = new T3.Mesh(new T3.CylinderGeometry(0.046, 0.046, 0.008, 24), steel); fl.rotation.x = Math.PI / 2; fl.position.set(wx, wy + 0.06, zz); g.add(fl); }
+    for (const zz of [-0.1, 0.1]) g.add(new T3.Mesh(boat_prism([[wx - 0.03, wy], [wx + 0.03, wy], [wx + 0.012, wy + 0.08], [wx - 0.012, wy + 0.08]], 0.01, 0.002), dark).translateZ(zz));
+  }
+  // Escotillas de la bodega
+  for (const [hx, hw] of [[-0.36, 0.16], [-0.6, 0.11]]) {
+    const hy = boat_deckY(hx);
+    const co = new T3.Mesh(boat_prism([[hx - hw / 2, hy - 0.02], [hx + hw / 2, hy - 0.02], [hx + hw / 2, hy + 0.03], [hx - hw / 2, hy + 0.03]], 0.17, 0.006), white); g.add(co);
+    const lid = new T3.Mesh(boat_prism([[hx - hw / 2 + 0.012, hy + 0.028], [hx + hw / 2 - 0.012, hy + 0.028], [hx + hw / 2 - 0.012, hy + 0.038], [hx - hw / 2 + 0.012, hy + 0.038]], 0.146, 0.003), deckM); g.add(lid);
+  }
+  // Cajas de pescado apiladas a popa
+  {
+    const crateM = new T3.MeshPhysicalMaterial({ color: COL.tide, roughness: 0.35, clearcoat: 1, clearcoatRoughness: 0.15 });
+    const cg = boat_prism([[-0.032, 0], [0.032, 0], [0.034, 0.03], [-0.034, 0.03]], 0.05, 0.004);
+    for (const [cx, cz, n, ry] of [[-0.76, 0.1, 3, 0.05], [-0.76, 0.03, 2, -0.08], [-0.68, -0.11, 2, 0.12]]) {
+      const cy = boat_deckY(cx) + 0.004;
+      for (let k = 0; k < n; k++) { const c = new T3.Mesh(cg, crateM); c.position.set(cx, cy + k * 0.031, cz); c.rotation.y = ry + k * 0.06; g.add(c); }
+    }
+  }
+  // Bitas de amarre
+  for (const s of [-1, 1]) for (const bx of [-0.84, 0.66]) {
+    const st = boat_station(bx), bz = s * (st.wi - 0.03);
+    for (const dx of [-0.018, 0.018]) { const b = new T3.Mesh(new T3.CylinderGeometry(0.009, 0.009, 0.04, 12), dark); b.position.set(bx + dx, st.dk + 0.016, bz); g.add(b); }
+  }
+
+  g.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+  g.position.set(0, -0.55, 0);
   const w = new T3.Group(); w.add(g); return w;
 }
+
+
+/* =====================================================================
+   Centro de acopio portuario: nave de lámina con portón enrollable,
+   tambores de 200 L sobre tarima antiderrames, filtros de aceite e IBC.
+   Ejes: X = frente de la nave a lo ancho, Y = altura (piso en y = 0), Z = hacia el frente.
+   ===================================================================== */
+// Lámina acanalada trapezoidal: canales verticales (eje Y), perfil a lo largo de X, crestas hacia +Z.
+// topFn(x) recorta la altura de cada columna (para los hastiales).
+function depot_corr(w, h, pitch, dep, topFn) {
+  const n = Math.max(1, Math.round(w / pitch)), P = w / n, prof = [];
+  for (let i = 0; i < n; i++) {
+    const x0 = -w / 2 + i * P;
+    prof.push([x0, 0], [x0 + P * 0.32, 0], [x0 + P * 0.44, dep], [x0 + P * 0.88, dep], [x0 + P, 0]);
+  }
+  const clean = prof.filter((p, i) => i === 0 || Math.abs(p[0] - prof[i - 1][0]) > 1e-6);
+  const pos = [];
+  for (let i = 0; i < clean.length - 1; i++) {
+    const [xa, za] = clean[i], [xb, zb] = clean[i + 1];
+    const ya = topFn ? topFn(xa) : h, yb = topFn ? topFn(xb) : h;
+    pos.push(xa, 0, za, xb, 0, zb, xb, yb, zb, xa, 0, za, xb, yb, zb, xa, ya, za);
+  }
+  const g = new T3.BufferGeometry(); g.setAttribute('position', new T3.Float32BufferAttribute(pos, 3));
+  return creaseNormals(g, 30);
+}
+// Caja con esquinas redondeadas en planta (rrShape extruido hacia arriba)
+function depot_block(w, d, h, r, b) {
+  b = b || 0.004;
+  const g = new T3.ExtrudeGeometry(rrShape(w - 2 * b, d - 2 * b, Math.max(0.001, r - b)), { depth: h - 2 * b, bevelEnabled: true, bevelThickness: b, bevelSize: b, bevelSegments: 2, curveSegments: 8 });
+  g.rotateX(-Math.PI / 2); g.translate(0, b, 0);
+  return creaseNormals(g, 40);
+}
+// Placa con esquinas redondeadas vista de frente (rrShape extruido en Z, centrado)
+function depot_slab(w, h, d, r, b) {
+  b = b || 0.003;
+  const g = new T3.ExtrudeGeometry(rrShape(w - 2 * b, h - 2 * b, Math.max(0.001, r - b)), { depth: d - 2 * b, bevelEnabled: true, bevelThickness: b, bevelSize: b, bevelSegments: 2, curveSegments: 8 });
+  g.translate(0, 0, -(d - 2 * b) / 2);
+  return creaseNormals(g, 40);
+}
+// Tambor metálico de 200 L: torno con contrabordes y aros de rodadura
+function depot_drumGeo(R, H) {
+  const p = [[0, 0.006], [R * 0.84, 0.006], [R * 0.9, 0.0015], [R + 0.0025, 0.0015], [R + 0.0035, 0.007], [R, 0.012]];
+  for (const f of [0.33, 0.67]) {
+    const y = H * f;
+    p.push([R, y - 0.009], [R + 0.004, y - 0.005], [R + 0.004, y + 0.005], [R, y + 0.009]);
+  }
+  for (const f of [0.5]) { const y = H * f; p.push([R, y - 0.005], [R - 0.0015, y], [R, y + 0.005]); }
+  p.push([R, H - 0.012], [R + 0.0035, H - 0.007], [R + 0.0025, H - 0.0015], [R * 0.9, H - 0.0015], [R * 0.84, H - 0.006], [0, H - 0.006]);
+  const g = new T3.LatheGeometry(p.map(([r, y]) => new T3.Vector2(r, y)), 32);
+  return creaseNormals(g.toNonIndexed(), 35);
+}
+// Filtro de aceite roscado: carcasa con domo y base con anillo de sello
+function depot_filterGeo(R, H) {
+  const p = [[0, 0.002], [R * 0.3, 0.002], [R * 0.32, 0], [R * 0.86, 0], [R * 0.92, 0.003], [R, 0.006], [R, H * 0.72]];
+  for (let i = 1; i <= 5; i++) { const a = (i / 5) * Math.PI / 2; p.push([R * (0.55 + 0.45 * Math.cos(a)), H * 0.74 + H * 0.26 * Math.sin(a)]); }
+  p.push([0, H]);
+  const g = new T3.LatheGeometry(p.map(([r, y]) => new T3.Vector2(r, y)), 20);
+  return creaseNormals(g.toNonIndexed(), 40);
+}
+// Cilindro (barra) entre dos puntos
+function depot_rod(a, b, r, mat, seg) {
+  const d = V3().subVectors(b, a), L = d.length();
+  const m = new T3.Mesh(new T3.CylinderGeometry(r, r, L, seg || 6), mat);
+  m.position.copy(a).addScaledVector(d, 0.5); m.quaternion.setFromUnitVectors(V3(0, 1, 0), d.normalize());
+  return m;
+}
+// Letrero: emblema de gota con hoja, sin texto
+function depot_signTex() {
+  const [c, x] = makeCanvas(512, 216);
+  x.fillStyle = '#0f6f69'; x.fillRect(0, 0, 512, 216);
+  const gr = x.createLinearGradient(0, 0, 0, 216); gr.addColorStop(0, 'rgba(255,255,255,0.10)'); gr.addColorStop(1, 'rgba(0,0,0,0.12)');
+  x.fillStyle = gr; x.fillRect(0, 0, 512, 216);
+  x.strokeStyle = 'rgba(255,255,255,0.85)'; x.lineWidth = 6; x.strokeRect(14, 14, 484, 188);
+  // Gota
+  x.save(); x.translate(256, 112);
+  x.fillStyle = '#ffffff';
+  x.beginPath(); x.moveTo(0, -78); x.bezierCurveTo(22, -44, 54, -16, 54, 18); x.arc(0, 18, 54, 0, Math.PI, false); x.bezierCurveTo(-54, -16, -22, -44, 0, -78); x.closePath(); x.fill();
+  // Hoja dentro de la gota
+  x.fillStyle = '#2BB3A8';
+  x.beginPath(); x.moveTo(-24, 44); x.bezierCurveTo(-30, 4, -6, -22, 30, -24); x.bezierCurveTo(30, 14, 8, 42, -24, 44); x.closePath(); x.fill();
+  x.strokeStyle = '#ffffff'; x.lineWidth = 4; x.lineCap = 'round';
+  x.beginPath(); x.moveTo(-22, 42); x.quadraticCurveTo(0, 6, 24, -18); x.stroke();
+  x.restore();
+  // Barras laterales discretas (sin texto)
+  x.fillStyle = 'rgba(255,255,255,0.55)';
+  for (const sx of [1, -1]) for (let k = 0; k < 3; k++) { const xx = 256 + sx * (110 + k * 40); x.fillRect(xx - 14, 104, 28, 8); }
+  return canvasTex(c);
+}
+
 function buildDepot() {
   const g = new T3.Group();
-  const alu = new T3.MeshPhysicalMaterial({ color: '#c9d0d8', metalness: 1, roughness: 0.3 });
-  const roofM = new T3.MeshPhysicalMaterial({ color: COL.teal, metalness: 0.6, roughness: 0.3, clearcoat: 1 });
-  const base = new T3.Mesh(new T3.BoxGeometry(1.1, 0.52, 0.74), alu); base.position.y = 0.26; g.add(base);
-  const rs = new T3.Shape(); rs.moveTo(-0.62, 0); rs.lineTo(0.62, 0); rs.lineTo(0, 0.3); rs.lineTo(-0.62, 0);
-  const rg = new T3.ExtrudeGeometry(rs, { depth: 0.82, bevelEnabled: false }); rg.translate(0, 0, -0.41);
-  const roof = new T3.Mesh(rg, roofM); roof.position.y = 0.52; g.add(roof);
-  const door = new T3.Mesh(new T3.BoxGeometry(0.34, 0.34, 0.02), new T3.MeshPhysicalMaterial({ color: '#0a121b', roughness: 0.1, clearcoat: 1 })); door.position.set(0, 0.17, 0.37); g.add(door);
-  const crate = (x, y, z, c) => { const m = new T3.Mesh(new T3.BoxGeometry(0.2, 0.2, 0.2), new T3.MeshPhysicalMaterial({ color: c, roughness: 0.35, clearcoat: 1 })); m.position.set(x, y, z); m.rotation.y = 0.2; g.add(m); };
-  crate(0.78, 0.1, 0.22, COL.amber); crate(0.78, 0.1, -0.04, COL.sky); crate(0.76, 0.3, 0.09, COL.aqua);
-  const barrel = new T3.Mesh(new T3.CylinderGeometry(0.1, 0.1, 0.28, 24), new T3.MeshPhysicalMaterial({ color: COL.amber, metalness: 0.5, roughness: 0.3 }));
-  barrel.position.set(-0.76, 0.14, 0.2); g.add(barrel);
-  const barrel2 = barrel.clone(); barrel2.position.set(-0.76, 0.14, -0.06); g.add(barrel2);
+  const concrete = new T3.MeshPhysicalMaterial({ color: '#4b5660', roughness: 0.85, clearcoat: 0.1 });
+  const plinthM = new T3.MeshPhysicalMaterial({ color: '#7c8790', roughness: 0.75 });
+  const wallM = new T3.MeshPhysicalMaterial({ color: '#e2e7eb', metalness: 0.25, roughness: 0.38, clearcoat: 0.6, clearcoatRoughness: 0.2 });
+  const roofM = new T3.MeshPhysicalMaterial({ color: COL.teal, metalness: 0.45, roughness: 0.3, clearcoat: 1, clearcoatRoughness: 0.12 });
+  const trim = new T3.MeshPhysicalMaterial({ color: '#f5f8fa', roughness: 0.3, clearcoat: 1 });
+  const graphite = new T3.MeshPhysicalMaterial({ color: '#2d3843', metalness: 0.55, roughness: 0.34, clearcoat: 0.8 });
+  const glass = new T3.MeshPhysicalMaterial({ color: '#0a121b', roughness: 0.06, metalness: 0.2, clearcoat: 1, clearcoatRoughness: 0.03 });
+  const steel = new T3.MeshPhysicalMaterial({ color: '#c9d0d8', metalness: 1, roughness: 0.3 });
+  const amberM = new T3.MeshPhysicalMaterial({ color: COL.amber, metalness: 0.2, roughness: 0.32, clearcoat: 1, clearcoatRoughness: 0.1 });
+  const blueM = new T3.MeshPhysicalMaterial({ color: COL.tide, metalness: 0.35, roughness: 0.32, clearcoat: 1, clearcoatRoughness: 0.1 });
+
+  // --- Losa de concreto (1.6 × 1.1) ---
+  const PH = 0.035;
+  g.add(new T3.Mesh(depot_block(1.6, 1.1, PH, 0.08, 0.008), concrete));
+  // Líneas pintadas: franja de seguridad frente al portón y zona de tambores
+  const paint = new T3.MeshPhysicalMaterial({ color: COL.amber, roughness: 0.5 });
+  const line = (w, d, x, z) => { const m = new T3.Mesh(new T3.BoxGeometry(w, 0.003, d), paint); m.position.set(x, PH + 0.0012, z); g.add(m); };
+  line(0.5, 0.012, -0.3, 0.42);
+  for (const [w, d, x, z] of [[0.42, 0.01, 0.4, -0.32], [0.42, 0.01, 0.4, 0.12], [0.01, 0.44, 0.19, -0.1], [0.01, 0.44, 0.61, -0.1]]) line(w, d, x, z);
+
+  // --- Nave de lámina: hastial al frente (+Z) ---
+  const SX = -0.3, SZ = -0.13, W = 0.8, D = 0.7, E = 0.42, R = 0.58, OV = 0.05;
+  const shed = new T3.Group(); shed.position.set(SX, PH, SZ); g.add(shed);
+  const roofY = (x) => E + (R - E) * (1 - Math.abs(x) / (W / 2));
+  // Rodapié de concreto
+  const pl = new T3.Mesh(depot_block(W + 0.03, D + 0.03, 0.04, 0.006, 0.003), plinthM); shed.add(pl);
+  // Núcleo cerrado (perfil de casa extruido)
+  {
+    const hs = new T3.Shape(); hs.moveTo(-W / 2, 0); hs.lineTo(W / 2, 0); hs.lineTo(W / 2, E); hs.lineTo(0, R); hs.lineTo(-W / 2, E); hs.lineTo(-W / 2, 0);
+    const cg = new T3.ExtrudeGeometry(hs, { depth: D, bevelEnabled: false }); cg.translate(0, 0, -D / 2);
+    shed.add(new T3.Mesh(cg, wallM));
+  }
+  // Revestimiento acanalado en los cuatro muros
+  const DEP = 0.007, PIT = 0.04;
+  for (const s of [1, -1]) {
+    const gab = new T3.Mesh(depot_corr(W, 0, PIT, DEP, roofY), wallM);
+    gab.position.set(0, 0.04, s * D / 2); gab.scale.y = 1; if (s < 0) gab.rotation.y = Math.PI;
+    // Recorte inferior: los canales arrancan sobre el rodapié
+    gab.geometry.translate(0, -0.04, 0); { const p = gab.geometry.attributes.position; for (let i = 0; i < p.count; i++) if (p.getY(i) < 0) p.setY(i, 0); }
+    shed.add(gab);
+    const side = new T3.Mesh(depot_corr(D, E - 0.04, PIT, DEP), wallM);
+    side.position.set(s * W / 2, 0.04, 0); side.rotation.y = s * Math.PI / 2; shed.add(side);
+  }
+  // Esquineros
+  for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
+    const c = new T3.Mesh(new T3.BoxGeometry(0.022, E - 0.035, 0.022), trim); c.position.set(sx * (W / 2 + 0.003), 0.04 + (E - 0.04) / 2, sz * (D / 2 + 0.003)); shed.add(c);
+  }
+  // Techo a dos aguas: losa + lámina acanalada con canales a favor de la pendiente
+  {
+    const half = W / 2 + OV, ang = Math.atan2(R - E, W / 2), L = half / Math.cos(ang), DD = D + 0.08;
+    for (const s of [-1, 1]) {
+      const pivot = new T3.Group(); pivot.position.set(0, R + 0.012, 0); pivot.rotation.z = -s * ang; shed.add(pivot);
+      const slabM = new T3.Mesh(new T3.BoxGeometry(L, 0.012, DD), trim); slabM.position.set(s * L / 2, -0.006, 0); pivot.add(slabM);
+      const sk = new T3.Mesh(depot_corr(DD, L, 0.045, 0.01), roofM);
+      // canales a lo largo de X local (pendiente): girar la lámina para acostarla sobre la losa
+      sk.rotation.set(-Math.PI / 2, 0, s > 0 ? -Math.PI / 2 : Math.PI / 2);
+      sk.position.set(0, 0, 0); pivot.add(sk);
+      // Canalón al pie del faldón
+      const gu = new T3.Mesh(new T3.CylinderGeometry(0.011, 0.011, DD, 12), trim); gu.rotation.x = Math.PI / 2; gu.position.set(s * (L + 0.006), -0.012, 0); pivot.add(gu);
+    }
+    // Cumbrera
+    const rc = new T3.Mesh(new T3.CylinderGeometry(0.014, 0.014, D + 0.09, 3), trim); rc.rotation.x = Math.PI / 2; rc.rotation.y = Math.PI; rc.position.set(0, R + 0.018, 0); shed.add(rc);
+    // Bajantes pluviales
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
+      const dp = new T3.Mesh(new T3.CylinderGeometry(0.006, 0.006, E - 0.03, 8), trim); dp.position.set(sx * (W / 2 + 0.03), 0.04 + (E - 0.06) / 2, sz * (D / 2 - 0.02)); shed.add(dp);
+    }
+  }
+  // Portón enrollable con guías y caja del rollo
+  const FZ = D / 2 + DEP;
+  {
+    const dw = 0.4, dh = 0.31;
+    const back = new T3.Mesh(new T3.BoxGeometry(dw + 0.01, dh, 0.01), graphite); back.position.set(0, 0.04 + dh / 2, FZ + 0.004); shed.add(back);
+    const sl = new T3.Mesh(depot_corr(dh, dw, 0.02, 0.004), graphite); sl.rotation.z = Math.PI / 2; sl.position.set(dw / 2, 0.04 + dh / 2, FZ + 0.009); shed.add(sl);
+    for (const sx of [-1, 1]) { const r = new T3.Mesh(new T3.BoxGeometry(0.022, dh + 0.03, 0.02), trim); r.position.set(sx * (dw / 2 + 0.011), 0.04 + (dh + 0.03) / 2, FZ + 0.01); shed.add(r); }
+    const hood = new T3.Mesh(depot_slab(dw + 0.07, 0.056, 0.05, 0.022, 0.004), trim); hood.position.set(0, 0.04 + dh + 0.03, FZ + 0.025); shed.add(hood);
+    const hb = new T3.Mesh(new T3.BoxGeometry(dw - 0.02, 0.012, 0.008), steel); hb.position.set(0, 0.052, FZ + 0.016); shed.add(hb);   // perfil inferior
+  }
+  // Puerta de servicio a un costado del hastial
+  {
+    const pd = new T3.Mesh(depot_slab(0.09, 0.2, 0.012, 0.004, 0.002), graphite); pd.position.set(0.3, 0.04 + 0.1, FZ + 0.006); shed.add(pd);
+    const fr = new T3.Mesh(new T3.BoxGeometry(0.106, 0.212, 0.008), trim); fr.position.set(0.3, 0.04 + 0.106, FZ + 0.002); shed.add(fr);
+    const hd = new T3.Mesh(new T3.BoxGeometry(0.004, 0.03, 0.006), steel); hd.position.set(0.27, 0.15, FZ + 0.015); shed.add(hd);
+  }
+  // Letrero con emblema
+  {
+    const back = new T3.Mesh(depot_slab(0.22, 0.096, 0.014, 0.012, 0.003), trim); back.position.set(0, 0.48, FZ + 0.01); shed.add(back);
+    const face = new T3.Mesh(new T3.PlaneGeometry(0.2, 0.084), new T3.MeshPhysicalMaterial({ map: depot_signTex(), roughness: 0.25, clearcoat: 1 }));
+    face.position.set(0, 0.48, FZ + 0.0175); shed.add(face);
+  }
+  // Ventanas en el muro lateral derecho
+  for (const zz of [-0.17, 0.12]) {
+    const fr = new T3.Mesh(new T3.BoxGeometry(0.01, 0.1, 0.17), trim); fr.position.set(W / 2 + DEP + 0.003, 0.3, zz); shed.add(fr);
+    const gl = new T3.Mesh(new T3.BoxGeometry(0.012, 0.084, 0.154), glass); gl.position.set(W / 2 + DEP + 0.004, 0.3, zz); shed.add(gl);
+    const mu = new T3.Mesh(new T3.BoxGeometry(0.014, 0.084, 0.006), trim); mu.position.set(W / 2 + DEP + 0.004, 0.3, zz); shed.add(mu);
+    const sill = new T3.Mesh(new T3.BoxGeometry(0.03, 0.008, 0.18), trim); sill.position.set(W / 2 + DEP + 0.01, 0.248, zz); shed.add(sill);
+  }
+  // Bolardos de protección junto al portón
+  for (const bx of [-0.27, 0.27]) {
+    const b = new T3.Mesh(new T3.CylinderGeometry(0.014, 0.014, 0.1, 16), amberM); b.position.set(SX + bx, PH + 0.05, SZ + D / 2 + 0.07); g.add(b);
+    const cap = new T3.Mesh(new T3.SphereGeometry(0.014, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2), amberM); cap.position.set(SX + bx, PH + 0.1, SZ + D / 2 + 0.07); g.add(cap);
+  }
+
+  // --- Tarima antiderrames con cuatro tambores ---
+  {
+    const TX = 0.4, TZ = -0.1, TW = 0.36;
+    const tub = new T3.Mesh(depot_block(TW, TW, 0.045, 0.012, 0.004), graphite); tub.position.set(TX, PH, TZ); g.add(tub);
+    for (let k = -4; k <= 4; k++) {   // rejilla
+      const bar = new T3.Mesh(new T3.BoxGeometry(0.006, 0.006, TW - 0.03), steel); bar.position.set(TX + k * 0.037, PH + 0.046, TZ); g.add(bar);
+    }
+    for (const zz of [-1, 1]) { const bar = new T3.Mesh(new T3.BoxGeometry(TW - 0.03, 0.006, 0.008), steel); bar.position.set(TX, PH + 0.047, TZ + zz * 0.1); g.add(bar); }
+    const dg = depot_drumGeo(0.072, 0.21);
+    const bung = new T3.CylinderGeometry(0.011, 0.011, 0.008, 14), bung2 = new T3.CylinderGeometry(0.007, 0.007, 0.008, 12);
+    [[-1, -1, blueM, 0.3], [1, -1, amberM, 1.2], [-1, 1, amberM, 2.2], [1, 1, blueM, 0.7]].forEach(([sx, sz, m, ry]) => {
+      const dr = new T3.Group(); dr.position.set(TX + sx * 0.085, PH + 0.049, TZ + sz * 0.085); dr.rotation.y = ry; g.add(dr);
+      dr.add(new T3.Mesh(dg, m));
+      const b1 = new T3.Mesh(bung, steel); b1.position.set(0.042, 0.208, 0); dr.add(b1);
+      const b2 = new T3.Mesh(bung2, steel); b2.position.set(-0.045, 0.208, 0.01); dr.add(b2);
+    });
+  }
+
+  // --- Contenedor IBC de 1000 L con jaula ---
+  {
+    const IX = 0.06, IZ = 0.36, IW = 0.24, ID = 0.2, IH = 0.25;
+    const ib = new T3.Group(); ib.position.set(IX, PH, IZ); ib.rotation.y = -0.18; g.add(ib);
+    const pal = new T3.Mesh(depot_block(IW, ID, 0.035, 0.006, 0.003), graphite); ib.add(pal);
+    const tankM = new T3.MeshPhysicalMaterial({ color: '#eef3f5', roughness: 0.32, clearcoat: 0.6, sheen: 0.4, sheenColor: new T3.Color('#ffffff') });
+    const tank = new T3.Mesh(depot_block(IW - 0.02, ID - 0.02, IH - 0.045, 0.03, 0.02), tankM); tank.position.y = 0.037; ib.add(tank);
+    // Nivel de líquido visible (franja ámbar tenue)
+    const liq = new T3.Mesh(depot_block(IW - 0.018, ID - 0.018, 0.1, 0.03, 0.004), new T3.MeshPhysicalMaterial({ color: '#c99a3e', roughness: 0.3, transparent: true, opacity: 0.55 }));
+    liq.position.y = 0.05; ib.add(liq);
+    const cap = new T3.Mesh(new T3.CylinderGeometry(0.03, 0.03, 0.014, 20), new T3.MeshPhysicalMaterial({ color: COL.tide, roughness: 0.4, clearcoat: 1 })); cap.position.y = 0.037 + IH - 0.045 + 0.005; ib.add(cap);
+    // Jaula de tubo galvanizado
+    const y0 = 0.035, y1 = IH + 0.003, hx = IW / 2, hz = ID / 2;
+    for (const yy of [y0 + 0.006, (y0 + y1) / 2, y1]) {
+      ib.add(depot_rod(V3(-hx, yy, -hz), V3(hx, yy, -hz), 0.0032, steel)); ib.add(depot_rod(V3(-hx, yy, hz), V3(hx, yy, hz), 0.0032, steel));
+      ib.add(depot_rod(V3(-hx, yy, -hz), V3(-hx, yy, hz), 0.0032, steel)); ib.add(depot_rod(V3(hx, yy, -hz), V3(hx, yy, hz), 0.0032, steel));
+    }
+    for (let k = 0; k <= 4; k++) {
+      const xx = -hx + (2 * hx) * k / 4;
+      for (const zz of [-hz, hz]) ib.add(depot_rod(V3(xx, y0, zz), V3(xx, y1, zz), 0.0032, steel));
+    }
+    for (let k = 1; k <= 3; k++) { const zz = -hz + (2 * hz) * k / 4; for (const xx of [-hx, hx]) ib.add(depot_rod(V3(xx, y0, zz), V3(xx, y1, zz), 0.0032, steel)); }
+    for (let k = 1; k <= 3; k++) { const xx = -hx + (2 * hx) * k / 4; ib.add(depot_rod(V3(xx, y1, -hz), V3(xx, y1, hz), 0.0028, steel)); }
+    // Válvula de descarga
+    const v = new T3.Mesh(new T3.CylinderGeometry(0.012, 0.012, 0.03, 14), new T3.MeshPhysicalMaterial({ color: '#2a2f35', roughness: 0.5 })); v.rotation.x = Math.PI / 2; v.position.set(0, 0.06, hz + 0.01); ib.add(v);
+  }
+
+  // --- Filtros de aceite usados apilados en charola ---
+  {
+    const FX = 0.44, FZ2 = 0.33;
+    const tray = new T3.Mesh(depot_block(0.24, 0.17, 0.018, 0.01, 0.003), graphite); tray.position.set(FX, PH, FZ2); tray.rotation.y = 0.25; g.add(tray);
+    const fg = depot_filterGeo(0.024, 0.06);
+    const gk = new T3.TorusGeometry(0.017, 0.0028, 6, 20); gk.rotateX(Math.PI / 2);
+    const rubber = new T3.MeshPhysicalMaterial({ color: '#15191d', roughness: 0.6 });
+    const fm = [blueM, new T3.MeshPhysicalMaterial({ color: '#eef2f5', metalness: 0.3, roughness: 0.3, clearcoat: 1 })];
+    const grp = new T3.Group(); grp.position.set(FX, PH + 0.018, FZ2); grp.rotation.y = 0.25; g.add(grp);
+    // Capa inferior: 3 × 3 de pie (domo arriba)
+    for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) {
+      const f = new T3.Mesh(fg, fm[(i + j) % 2]); f.position.set(-0.052 + i * 0.052, 0, -0.052 + j * 0.052); grp.add(f);
+    }
+    // Capa superior: 2 × 2 invertidos, mostrando la base con su empaque
+    for (let i = 0; i < 2; i++) for (let j = 0; j < 2; j++) {
+      const f = new T3.Group(); f.position.set(-0.026 + i * 0.052, 0.122, -0.026 + j * 0.052); f.rotation.x = Math.PI; grp.add(f);
+      f.add(new T3.Mesh(fg, fm[(i + j + 1) % 2]));
+      const gs = new T3.Mesh(gk, rubber); gs.position.y = -0.001; f.add(gs);
+      const hole = new T3.Mesh(new T3.CylinderGeometry(0.006, 0.006, 0.004, 12), rubber); hole.position.y = 0.0; f.add(hole);
+    }
+  }
+
+  g.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
   g.position.y = -0.45;
   const w = new T3.Group(); w.add(g); return w;
 }

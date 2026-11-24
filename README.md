@@ -126,6 +126,9 @@ rasterizado a 0.5° e incrustado en el HTML como una máscara de bits (base64).
   MSAA, bloom por cadena de mips (Jimenez 2014), profundidad de campo con enfoque en el objetivo de
   cada toma (bokeh de 22 muestras a media resolución), desenfoque de movimiento de cámara por
   reproyección de profundidad, viñeta, grano y gradación.
+- **Objetos con anatomía real:** el barco es un camaronero del Alto Golfo (casco con arrufo y
+  proa abocinada, caseta al frente, mástil, tangones con jarcia, puertas de arrastre y redes) y el
+  centro de acopio tiene lámina acanalada, cortina, tambos de 200 L, contenedor IBC y filtros.
 - **Sombras suaves** que siguen a la escena activa (manifiestos, laptop, trazabilidad y MARPOL).
 - Cada escena aparece cuando entra en cuadro (sin saltos) y el fondo azul del cubo se desvanece.
 - Todo depende sólo del tiempo de la línea: ir y volver da el mismo cuadro (`tools/seekcheck.js`).
