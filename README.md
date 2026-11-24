@@ -122,6 +122,12 @@ rasterizado a 0.5° e incrustado en el HTML como una máscara de bits (base64).
 
 ## Imagen y efectos
 
+- **Dirección de arte: el Mar de Cortés del amanecer a la noche.** Cielo procedural y mar con oleaje
+  que lo refleja (camino de luz del sol, bruma en el horizonte). La luz sigue la historia: amanecer
+  en el inicio, día en la plataforma y el impacto, atardecer en los puertos y noche estrellada con luna
+  en colaboradores y cierre. Los movimientos de cámara entre escenas vuelan sobre el agua.
+- **Tipografía en movimiento:** titulares y cita entran palabra por palabra desde un desenfoque.
+
 - **Posproceso de cine** escrito a mano sobre Three.js r159 (sin complementos): escena en HDR con
   MSAA, bloom por cadena de mips (Jimenez 2014), profundidad de campo con enfoque en el objetivo de
   cada toma (bokeh de 22 muestras a media resolución), desenfoque de movimiento de cámara por

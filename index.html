@@ -42,8 +42,12 @@ body.sin-cursor,body.sin-cursor *{cursor:none!important}
 .ln{opacity:0;visibility:hidden;transform:translateY(46px);filter:blur(14px)}
 .col{position:absolute;left:150px;width:1000px;display:flex;flex-direction:column;align-items:flex-start}
 .eyebrow{margin:0 0 30px;font-size:22px;font-weight:700;letter-spacing:.34em;text-transform:uppercase;color:var(--aqua)}
+.layer .h,.layer .body,.layer .eyebrow,.layer .ql,.layer .loc,.layer .note{text-shadow:0 2px 30px rgba(3,7,13,.7),0 1px 3px rgba(3,7,13,.5)}
+.layer .kw{text-shadow:none;filter:drop-shadow(0 2px 14px rgba(3,7,13,.55))}
 .h{margin:0;font-size:92px;font-weight:800;letter-spacing:-.035em;line-height:1.02;color:var(--t1);white-space:nowrap}
 .h.g{color:var(--t3)}
+.layer .w{display:inline-block;transform-origin:50% 100%}
+.layer .h,.layer .ql{perspective:600px}
 .h.sm{font-size:86px}
 .body{margin:36px 0 0;max-width:640px;font-size:30px;line-height:1.42;color:var(--t2)}
 .body b{color:var(--t1);font-weight:700}
@@ -602,6 +606,105 @@ function radialPlaneTex(inner, outer, w, h) {
 const SHADER_TAIL = '\n#include <tonemapping_fragment>\n#include <colorspace_fragment>\n';
 
 /* =====================================================================
+   Entorno: el Mar de Cortés, del amanecer a la noche
+   Cielo procedural y mar con oleaje que reflejan el mismo cielo; la luz cambia con la historia:
+   amanecer (inicio) → mañana → día → atardecer (puertos) → noche estrellada (colaboradores y cierre).
+   Todo depende de T (los fotogramas son idénticos al ir y volver).
+   ===================================================================== */
+const SEA_Y = -3.2;
+// Fotogramas clave del cielo: [T, cénit, horizonte, color del sol, elevación del sol (°), estrellas]
+const SKY_KEYS = [
+  [0, '#04070f', '#3a2a3a', '#ff9e5e', -1.5, 0.55],
+  [6, '#050b18', '#6b4a4a', '#ffb070', 3, 0.15],
+  [18, '#040b17', '#22374f', '#ffd9a8', 24, 0],
+  [40, '#040c19', '#1d3650', '#fff0d8', 34, 0],
+  [56, '#050c19', '#1f3650', '#ffe9c8', 26, 0],
+  [61, '#050b17', '#1c2f46', '#ffd2a0', 18, 0],
+  [66, '#070d1d', '#8a4a38', '#ff9150', 2.5, 0],
+  [74, '#050914', '#4a2c38', '#ff7a45', -1, 0.25],
+  [80, '#02040a', '#0e1528', '#a8bcff', 18, 1],
+  [94, '#02040a', '#0e1528', '#a8bcff', 18, 1],
+];
+const SKY_GLSL = `
+  uniform vec3 uZen; uniform vec3 uHor; uniform vec3 uSunCol; uniform vec3 uSunDir; uniform float uStars; uniform float uMoon;
+  float h13(vec3 p){ return fract(sin(dot(p, vec3(12.9898, 78.233, 37.719))) * 43758.5453); }
+  vec3 sky(vec3 d){
+    float h = d.y;
+    vec3 c = mix(uHor, uZen, pow(clamp(h, 0.0, 1.0), 0.42));
+    if (h < 0.0) c = mix(uHor * 0.55, uHor * 0.35, clamp(-h * 6.0, 0.0, 1.0));
+    float sd = max(dot(d, uSunDir), 0.0);
+    // disco, corona y resplandor amplio (la luna es más pequeña y fría)
+    float disc = mix(pow(sd, 1800.0) * 5.0, pow(sd, 5000.0) * 4.0, uMoon);
+    c += uSunCol * (disc + pow(sd, 28.0) * mix(0.2, 0.06, uMoon) + pow(sd, 4.0) * mix(0.08, 0.02, uMoon) * (1.0 - clamp(h * 2.5, 0.0, 1.0)));
+    c += uHor * exp(-abs(h) * 22.0) * 0.22;
+    if (uStars > 0.001 && h > 0.0) {
+      vec3 q = floor(d * 420.0); float n = h13(q);
+      c += vec3(0.85, 0.9, 1.0) * smoothstep(0.9982, 1.0, n) * uStars * smoothstep(0.02, 0.35, h) * (0.6 + 0.4 * h13(q + 7.0));
+    }
+    return c;
+  }`;
+let envSet;
+function buildEnvironment() {
+  const U = { uZen: { value: new T3.Color() }, uHor: { value: new T3.Color() }, uSunCol: { value: new T3.Color() }, uSunDir: { value: V3(0, 0.1, -1) }, uStars: { value: 0 }, uMoon: { value: 0 }, uT: timeUniform };
+  // Cielo: esfera que sigue a la cámara (siempre "en el infinito")
+  const skyMat = new T3.ShaderMaterial({
+    uniforms: U, side: T3.BackSide, depthTest: false, depthWrite: false, fog: false,
+    vertexShader: 'varying vec3 vW; void main(){ vec4 w = modelMatrix * vec4(position, 1.0); vW = w.xyz; gl_Position = projectionMatrix * viewMatrix * w; }',
+    fragmentShader: SKY_GLSL + `
+      varying vec3 vW;
+      void main(){ gl_FragColor = vec4(sky(normalize(vW - cameraPosition)), 1.0);
+        #include <colorspace_fragment>
+      }`,
+  });
+  const skyMesh = new T3.Mesh(new T3.SphereGeometry(200, 48, 24), skyMat); skyMesh.renderOrder = -10; skyMesh.frustumCulled = false; scene.add(skyMesh);
+  // Mar: plano enorme bajo los escenarios; olas en coordenadas del mundo (no se deslizan con la cámara)
+  const seaMat = new T3.ShaderMaterial({
+    uniforms: Object.assign({ uDeep: { value: new T3.Color('#02101c') } }, U), fog: false, depthWrite: true,
+    vertexShader: 'varying vec3 vW; void main(){ vec4 w = modelMatrix * vec4(position, 1.0); vW = w.xyz; gl_Position = projectionMatrix * viewMatrix * w; }',
+    fragmentShader: SKY_GLSL + `
+      uniform float uT; uniform vec3 uDeep; varying vec3 vW;
+      vec2 wave(vec2 p, vec2 dir, float k, float sp, float a){ float ph = dot(p, dir) * k + uT * sp; return dir * (a * k * cos(ph)); }
+      void main(){
+        vec3 toCam = cameraPosition - vW; float dist = length(toCam); vec3 V = toCam / dist;
+        // pendiente de la superficie: suma de olas; el detalle fino se apaga con la distancia (sin parpadeo)
+        float fine = 1.0 - smoothstep(20.0, 90.0, dist);
+        vec2 g = wave(vW.xz, normalize(vec2(1.0, 0.35)), 0.22, 0.55, 0.55)
+               + wave(vW.xz, normalize(vec2(-0.6, 1.0)), 0.37, 0.8, 0.28)
+               + wave(vW.xz, normalize(vec2(0.2, -1.0)), 0.9, 1.3, 0.09) * fine
+               + wave(vW.xz, normalize(vec2(0.9, 0.7)), 1.9, 2.1, 0.035) * fine;
+        vec3 N = normalize(vec3(-g.x, 1.0, -g.y));
+        vec3 R = reflect(-V, N); R.y = abs(R.y) + 0.002;
+        float fres = 0.02 + 0.98 * pow(1.0 - max(dot(N, V), 0.0), 5.0);
+        vec3 col = mix(uDeep + uHor * 0.05, sky(normalize(R)), fres);
+        // camino de luz del sol sobre el agua
+        col += uSunCol * pow(max(dot(R, uSunDir), 0.0), mix(260.0, 900.0, uMoon)) * mix(2.2, 1.4, uMoon) * (1.0 - smoothstep(0.25, 0.6, uSunDir.y));
+        // bruma hacia el horizonte: se funde con el cielo
+        float haze = smoothstep(50.0, 245.0, dist);
+        col = mix(col, sky(normalize(vec3(-V.x, -0.002, -V.z))), haze);
+        gl_FragColor = vec4(col, 1.0);
+        #include <colorspace_fragment>
+      }`,
+  });
+  const sea = new T3.Mesh(new T3.PlaneGeometry(1200, 1200), seaMat); sea.rotation.x = -Math.PI / 2; sea.frustumCulled = false; scene.add(sea);
+  const cA = new T3.Color(), cB = new T3.Color(), tmp = new T3.Color();
+  const lerpCol = (out, a, b, k) => out.copy(cA.set(a)).lerp(cB.set(b), k);
+  envSet = {
+    update(T) {
+      let i = 0; while (i < SKY_KEYS.length - 2 && T >= SKY_KEYS[i + 1][0]) i++;
+      const A = SKY_KEYS[i], B = SKY_KEYS[i + 1], k = smooth(clamp((T - A[0]) / (B[0] - A[0])));
+      lerpCol(U.uZen.value, A[1], B[1], k); lerpCol(U.uHor.value, A[2], B[2], k); lerpCol(U.uSunCol.value, A[3], B[3], k);
+      const el = lerp(A[4], B[4], k) * D2R;
+      U.uSunDir.value.set(0.42 * Math.cos(el), Math.sin(el), -Math.cos(el)).normalize();
+      U.uStars.value = lerp(A[5], B[5], k);
+      U.uMoon.value = smooth(clamp((T - 77) / 3));
+      skyMesh.position.copy(camera.position);
+      sea.position.set(camera.position.x, SEA_Y, camera.position.z);
+      tmp.copy(U.uHor.value);
+    },
+  };
+}
+
+/* =====================================================================
    Partículas de plancton (todo el recorrido)
    ===================================================================== */
 function buildPlankton() {
@@ -932,7 +1035,7 @@ function hand(x, s, X, Y, color, r, size) {
 let sheets;
 function buildSheets() {
   const root = new T3.Group(); root.position.set(SET_X.sheets, 0, 0);
-  const floor = new T3.Mesh(new T3.PlaneGeometry(36, 36), new T3.MeshBasicMaterial({ map: radialPlaneTex('#0d1826', '#03070D'), toneMapped: false }));
+  const floor = new T3.Mesh(new T3.PlaneGeometry(36, 36), new T3.MeshBasicMaterial({ map: radialPlaneTex('#0d1826', 'rgba(3,7,13,0)'), toneMapped: false, transparent: true, depthWrite: false }));
   floor.rotation.x = -Math.PI / 2; root.add(floor);
   const mats = [];
   for (let v = 0; v < 3; v++) {
@@ -1905,7 +2008,7 @@ function buildRecycle(mat) {
 }
 function buildTrace() {
   const root = new T3.Group(); root.position.set(SET_X.trace, 0, 0);
-  const floor = new T3.Mesh(new T3.PlaneGeometry(60, 40), new T3.MeshBasicMaterial({ map: radialPlaneTex('#0c1825', '#03070D'), toneMapped: false }));
+  const floor = new T3.Mesh(new T3.PlaneGeometry(60, 40), new T3.MeshBasicMaterial({ map: radialPlaneTex('#0c1825', 'rgba(3,7,13,0)'), toneMapped: false, transparent: true, depthWrite: false }));
   floor.rotation.x = -Math.PI / 2; root.add(floor);
   const pedMat = new T3.MeshPhysicalMaterial({ color: '#0d1825', roughness: 0.2, metalness: 0.5, clearcoat: 1, clearcoatRoughness: 0.06 });
   const SP = 3.4, peds = [];
@@ -2050,7 +2153,7 @@ function buildBottle() {
 }
 function buildMarpol() {
   const root = new T3.Group(); root.position.set(SET_X.marpol, 0, 0);
-  const floor = new T3.Mesh(new T3.PlaneGeometry(44, 36), new T3.MeshBasicMaterial({ map: radialPlaneTex('#0d1a2a', '#03070D'), toneMapped: false }));
+  const floor = new T3.Mesh(new T3.PlaneGeometry(44, 36), new T3.MeshBasicMaterial({ map: radialPlaneTex('#0d1a2a', 'rgba(3,7,13,0)'), toneMapped: false, transparent: true, depthWrite: false }));
   floor.rotation.x = -Math.PI / 2; root.add(floor);
   const back = glow(COL.tide, 16, 0.2); back.position.set(1.5, 2.6, -5); root.add(back);
   const back2 = glow(COL.aqua, 9, 0.08); back2.position.set(-1.6, 1.4, -2.5); root.add(back2);
@@ -2125,36 +2228,8 @@ function buildQuote() {
     s.userData = { x: (r() - 0.5) * 16, y: (r() - 0.5) * 7, z: -4 - r() * 8, p: r() * 6 };
     root.add(s); list.push(s);
   }
-  // Mar de puntos: una superficie de luz que respira con oleaje suave bajo la cita (función de T)
-  const NX = 220, NZ = 90, sea = new Float32Array(NX * NZ * 3), seaR = new Float32Array(NX * NZ), rs = rng(23);
-  for (let j = 0, k = 0; j < NZ; j++) for (let i = 0; i < NX; i++, k++) {
-    sea[k * 3] = (i / (NX - 1) - 0.5) * 46 + (rs() - 0.5) * 0.08; sea[k * 3 + 1] = -2.6; sea[k * 3 + 2] = 5 - Math.pow(j / (NZ - 1), 1.35) * 44;
-    seaR[k] = rs();
-  }
-  const sg = new T3.BufferGeometry();
-  sg.setAttribute('position', new T3.BufferAttribute(sea, 3)); sg.setAttribute('aR', new T3.BufferAttribute(seaR, 1));
-  const seaMat = new T3.ShaderMaterial({
-    uniforms: { uT: timeUniform, uRes: resUniform, uA: { value: new T3.Color(COL.aqua) }, uB: { value: new T3.Color(COL.tide) }, uOn: { value: 0 } },
-    vertexShader: `attribute float aR; uniform float uT; uniform float uRes; varying float vA; varying float vH;
-      void main(){
-        vec3 p = position;
-        float h = sin(p.x * 0.32 + uT * 0.55) * 0.32 + sin(p.z * 0.45 - uT * 0.75 + p.x * 0.12) * 0.42 + sin((p.x + p.z) * 0.9 + uT * 1.1) * 0.08;
-        p.y += h; vH = h;
-        vec4 mv = modelViewMatrix * vec4(p, 1.0); gl_Position = projectionMatrix * mv;
-        float d = -mv.z;
-        gl_PointSize = max(1.5, (1.6 + aR * 1.4) * uRes * 24.0 / max(d, 1.0));
-        vA = smoothstep(46.0, 10.0, d) * smoothstep(1.0, 4.0, d);
-      }`,
-    fragmentShader: `uniform vec3 uA; uniform vec3 uB; uniform float uOn; varying float vA; varying float vH;
-      void main(){ float r = length(gl_PointCoord - 0.5); float a = smoothstep(0.5, 0.15, r) * vA * uOn;
-        gl_FragColor = vec4(mix(uB, uA, smoothstep(-0.5, 0.6, vH)) * (1.1 + vH * 1.4), a);
-        #include <colorspace_fragment>
-      }`,
-    transparent: true, depthWrite: false, blending: T3.AdditiveBlending,
-  });
-  const seaPts = new T3.Points(sg, seaMat); seaPts.frustumCulled = false; root.add(seaPts);
   scene.add(root);
-  quoteSet = { root, update(T) { seaMat.uniforms.uOn.value = smooth(clamp((T - 39.9) / 1.6)) * (1 - smooth(clamp((T - 45.9) / 0.9))); for (const s of list) { const u = s.userData; s.position.set(u.x + Math.sin(T * 0.21 + u.p) * 1.4, u.y + Math.cos(T * 0.17 + u.p) * 0.8, u.z); } } };
+  quoteSet = { root, update(T) { for (const s of list) { const u = s.userData; s.position.set(u.x + Math.sin(T * 0.21 + u.p) * 1.4, u.y + Math.cos(T * 0.17 + u.p) * 0.8, u.z); } } };
   return root;
 }
 
@@ -2229,8 +2304,7 @@ function buildCube() {
     root, oil, L,
     update(T) {
       // El fondo azul sólo acompaña a esta escena: se desvanece con la distancia de la cámara (sin saltos)
-      bd.material.opacity = smooth(clamp((44 - Math.abs(rig.tx - SET_X.cube)) / 14));
-      bd.visible = bd.material.opacity > 0.002;
+      bd.visible = false;   // el cubo ya está sobre el mar real
       const s = Math.max(0.001, S6.show);
       wmesh.scale.set(1, s, 1); wmesh.visible = S6.show > 0.002;
       edgeMat.opacity = 0.55 * clamp(S6.show * 1.5);
@@ -2345,7 +2419,7 @@ const S7 = { n0: 0, n1: 0, n2: 0, n3: 0 };
 let nums;
 function buildNumbers() {
   const root = new T3.Group(); root.position.set(SET_X.nums, 0, 0);
-  const floorM = new T3.MeshBasicMaterial({ map: radialPlaneTex('rgba(10,20,32,0.86)', 'rgba(3,7,13,1)', 512, 512), transparent: true, toneMapped: false });
+  const floorM = new T3.MeshBasicMaterial({ map: radialPlaneTex('rgba(10,20,32,0.86)', 'rgba(3,7,13,0)', 512, 512), transparent: true, depthWrite: false, toneMapped: false });
   const floor = new T3.Mesh(new T3.PlaneGeometry(110, 60), floorM); floor.rotation.x = -Math.PI / 2; root.add(floor);
   const face = new T3.MeshPhysicalMaterial({ color: '#f2f6fa', roughness: 0.26, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.05 });
   const side = new T3.MeshPhysicalMaterial({ color: '#2a6ee4', metalness: 1, roughness: 0.26, clearcoat: 0.5, envMapIntensity: 1.3 });
@@ -2401,7 +2475,7 @@ let globe;
 function ll2v(lat, lon, R, out) { const p = lat * D2R, l = lon * D2R; return (out || V3()).set(R * Math.cos(p) * Math.cos(l), R * Math.sin(p), -R * Math.cos(p) * Math.sin(l)); }
 function buildGlobe() {
   const R = 3;
-  const root = new T3.Group(); root.position.set(SET_X.globe, 0, 0);
+  const root = new T3.Group(); root.position.set(SET_X.globe, 1.2, 0);
   const FOC = { lat: 24, lon: -103 };
   const tilt = new T3.Group(); tilt.rotation.x = FOC.lat * D2R; root.add(tilt);
   const spin = new T3.Group(); tilt.add(spin);
@@ -2503,7 +2577,7 @@ const SP = { rise: 0, beacon: 0, wave: 0 };
 let plan;
 function buildPlan() {
   const root = new T3.Group(); root.position.set(SET_X.plan, 0, 0);
-  const floor = new T3.Mesh(new T3.PlaneGeometry(60, 44), new T3.MeshBasicMaterial({ map: radialPlaneTex('#0c1a2b', '#03070D'), toneMapped: false }));
+  const floor = new T3.Mesh(new T3.PlaneGeometry(60, 44), new T3.MeshBasicMaterial({ map: radialPlaneTex('#0c1a2b', 'rgba(3,7,13,0)'), toneMapped: false, transparent: true, depthWrite: false }));
   floor.rotation.x = -Math.PI / 2; root.add(floor);
   const back = glow(COL.tide, 22, 0.15); back.position.set(0, 2, -9); root.add(back);
   // Proyección equirectangular con la longitud corregida a la latitud media del país
@@ -2616,7 +2690,17 @@ const CUTS = [];   // tiempos de corte de cámara: ahí no hay estela de movimie
 function buildTimeline() {
   tl = gsap.timeline({ paused: true, defaults: { immediateRender: false, lazy: false } });
   tlCam = gsap.timeline({ paused: true, defaults: { immediateRender: false, lazy: false } });
-  const tIn = (t, at, stagger) => tl.fromTo(t, { autoAlpha: 0, y: 46, filter: 'blur(14px)' }, { autoAlpha: 1, y: 0, filter: 'blur(0px)', duration: 1.15, ease: 'expo.out', stagger: stagger || 0 }, at);
+  // Titulares y cita: entran palabra por palabra (suben desde un desenfoque, escalonadas); lo demás, línea completa
+  const isHead = (el) => el.classList && (el.classList.contains('h') || el.classList.contains('ql'));
+  const tIn = (t, at, stagger) => {
+    const els = gsap.utils.toArray(t), heads = els.filter(isHead), rest = els.filter((e) => !isHead(e)), st = stagger || 0;
+    if (rest.length) tl.fromTo(rest, { autoAlpha: 0, y: 46, filter: 'blur(14px)' }, { autoAlpha: 1, y: 0, filter: 'blur(0px)', duration: 1.15, ease: 'expo.out', stagger: st }, at);
+    heads.forEach((h) => {
+      const t0 = at + els.indexOf(h) * st;
+      tl.fromTo(h, { autoAlpha: 0, y: 0, filter: 'blur(0px)' }, { autoAlpha: 1, y: 0, filter: 'blur(0px)', duration: 0.01, ease: 'none' }, t0);
+      tl.fromTo(h.querySelectorAll('.w'), { opacity: 0, y: '0.42em', rotationX: -35, filter: 'blur(12px)' }, { opacity: 1, y: 0, rotationX: 0, filter: 'blur(0px)', duration: 1.05, ease: 'expo.out', stagger: 0.055 }, t0);
+    });
+  };
   const tOut = (t, at, stagger) => tl.fromTo(t, { autoAlpha: 1, y: 0, filter: 'blur(0px)' }, { autoAlpha: 0, y: -26, filter: 'blur(10px)', duration: 0.6, ease: 'power2.in', stagger: stagger || 0 }, at);
   const cur = Object.assign({}, rig);
   // Cada movimiento de cámara va a la línea principal (rig) y a la de cámara (rigPrev, se evalúa en T - obturación)
@@ -2724,9 +2808,9 @@ function buildTimeline() {
   tOut(sc(7) + '.ln', 62.85, 0.02);
 
   // 8 · Puertos (64–71)
-  camTo(63.0, 1.35, { x: SET_X.globe, y: 1.6, z: 17.5, tx: SET_X.globe, ty: 0, tz: 0, ox: 0.3, fn: 26, ff: 72, ap: 0 });
+  camTo(63.0, 1.35, { x: SET_X.globe, y: 2.8, z: 17.5, tx: SET_X.globe, ty: 1.2, tz: 0, ox: 0.3, fn: 26, ff: 72, ap: 0 });
   prop(S8, 'spin', 2.8, 0, 63.2, 4.3, 'power2.inOut');
-  camTo(64.6, 3.2, { y: 0.75, z: 7.7, ty: 0.12, ox: 0.3 }, 'power2.inOut');
+  camTo(64.6, 3.2, { y: 1.95, z: 7.7, ty: 1.32, ox: 0.3 }, 'power2.inOut');
   camTo(67.8, 3.2, { z: 7.25, az: 0.05 }, 'sine.inOut');
   prop(S8, 'zoom', 0, 1, 64.6, 3.2, 'power2.inOut');
   prop(S8, 'pin', 0, 1, 67.1, 0.8, 'back.out(2)');
@@ -2825,6 +2909,7 @@ function followShadow() {
 function frame(T) {
   timeUniform.value = T;
   applyRig();
+  envSet.update(T);
   // El contraluz se refleja como un destello sobre la superficie del agua: se atenúa cerca del cubo
   rimLight.intensity = lerp(3.0, 0, smooth(clamp((30 - Math.abs(rig.tx - SET_X.cube)) / 15))) * lerp(1, 0.35, smooth(clamp((30 - Math.abs(rig.tx - SET_X.laptop)) / 15)));
   followShadow();
@@ -3176,6 +3261,7 @@ async function init() {
   await Promise.all(Object.keys(LOGO_IMG).map(async (k) => { const im = new Image(); im.src = LOGO_IMG[k]; try { await im.decode(); IMGS[k] = im; } catch (e) { /* se usa el dibujo de respaldo */ } }));
   resize();
   setLoad('Construyendo los escenarios…', 0.22); await tick();
+  buildEnvironment();
   buildPlankton();
   sets.push({ name: 'emblem', group: buildEmblem(), x: SET_X.emblem });
   sets.push({ name: 'sheets', group: buildSheets(), x: SET_X.sheets }); setLoad('Construyendo los escenarios…', 0.34); await tick();
@@ -3207,6 +3293,22 @@ async function init() {
   });
   addAnchor($('#tag-plan'), plan.root, (o) => plan.top.getWorldPosition(o));
 
+  // Cada titular se parte en palabras (.w) para la entrada escalonada; un degradado .kw queda entero
+  $$('.layer .h, .layer .ql').forEach(function split(el) {
+    Array.from(el.childNodes).forEach((n) => {
+      if (n.nodeType === 3) {
+        const frag = document.createDocumentFragment();
+        n.textContent.split(/(\s+)/).forEach((tok) => {
+          if (!tok) return;
+          if (/^\s+$/.test(tok)) { frag.appendChild(document.createTextNode(tok)); return; }
+          const w = document.createElement('span'); w.className = 'w'; w.textContent = tok; frag.appendChild(w);
+        });
+        el.replaceChild(frag, n);
+      } else if (n.nodeType === 1) {
+        if (n.classList.contains('kw')) n.classList.add('w'); else split(n);
+      }
+    });
+  });
   buildTimeline();
   bindUI();
 
