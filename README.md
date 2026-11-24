@@ -16,7 +16,7 @@ desde jsDelivr y las tipografías (Atkinson Hyperlegible Next y Mono) desde Goog
 | 0:00 | Inicio: el emblema se arma en 3D al amanecer |
 | 0:07 | El problema: manifiestos escritos a mano que se deterioran |
 | 0:16 | La plataforma: laptop con el Panel y teléfono con "Nuevo manifiesto" |
-| 0:24 | Cómo funciona, paso a paso, en un diorama del puerto: 1) llega el camaronero y atraca; 2) un montacargas lleva los tambos de aceite usado, los filtros y la basura al centro de acopio; 3) se llena el manifiesto en SiMAR (Keiko II, folio MAN22052026 001); 4) una empresa recolectora solicita la recolección y el centro de acopio la aprueba (Enviada → Aprobada); 5) el camión la lleva a la planta de reciclaje (Recolectada) |
+| 0:24 | Cómo funciona, paso a paso, en un diorama del puerto: 1) llega el camaronero (estela de espuma, balanceo) y queda amarrado a las bitas; 2) la grúa del muelle baja la tarima de tambos y un montacargas la lleva al centro de acopio; 3) se llena el manifiesto en SiMAR (Keiko II, folio MAN22052026 001); 4) una empresa recolectora solicita la recolección y el centro de acopio la aprueba (Enviada → Aprobada); el camión entra por el camino de acceso y el montacargas sube la tarima a la plataforma; 5) el camión entra en reversa a la bahía de la planta de reciclaje (Recolectada). Alrededor: tierra con escollera, bodegas, estiba de contenedores, sierras del desierto y trabajadores con casco y chaleco |
 | 0:48 | MARPOL Anexo V: ni un plástico al mar; el manifiesto que genera SiMAR, con sus firmas y su folio |
 | 0:57 | Don Francisco: la cita y los principios de diseño |
 | 1:03 | Conciencia azul: 1 L de aceite puede contaminar un millón de litros de agua (cubo de 10 m, a escala) |
