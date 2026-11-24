@@ -9,22 +9,25 @@ Todo vive en un solo archivo, [`index.html`](./index.html) (es a la vez la fuent
 desde jsDelivr y las tipografías (Atkinson Hyperlegible Next y Mono) desde Google Fonts; lo demás
 (pantallas, hojas, texturas, continentes) se genera dentro de la página.
 
-## Guion (94 s en bucle)
+## Guion (110 s en bucle)
 
 | Tiempo | Escena |
 |---|---|
-| 0:00 | Inicio: el emblema se arma en 3D |
+| 0:00 | Inicio: el emblema se arma en 3D al amanecer |
 | 0:07 | El problema: manifiestos escritos a mano que se deterioran |
 | 0:16 | La plataforma: laptop con el Panel y teléfono con "Nuevo manifiesto" |
-| 0:25 | Trazabilidad: embarcación → centro de acopio → reciclaje o relleno |
-| 0:32 | MARPOL Anexo V: ni un plástico al mar; el manifiesto que genera SiMAR, con sus firmas y su folio |
-| 0:41 | Don Francisco: la cita y los principios de diseño |
-| 0:47 | Conciencia azul: 1 L de aceite puede contaminar un millón de litros de agua (cubo de 10 m, a escala) |
-| 0:55 | Impacto: 742 manifiestos, 80,957 kg de basura, 125,530 L de aceite, 125.6 t de CO₂ |
-| 1:04 | Puertos: Puerto Peñasco y 8 puertos más en el globo |
-| 1:12 | Plan México: mapa de México en 3D y las dos metas con las que SiMAR está en línea |
-| 1:20 | Colaboradores: Dr. Ixtoc Marlo Rivera Núñez (CIAD), Ing. Francisco Javier Bojórquez Ochoa (DCK Puerto Peñasco), Dr. Gabriel Rivera Solis (Centro de acopio Rivera) y Dr. Aarón Rivera Núñez (Reserva de la Biosfera El Pinacate y Gran Desierto de Altar) |
-| 1:27 | Cierre |
+| 0:24 | Cómo funciona, paso a paso, en un diorama del puerto: 1) llega el camaronero y atraca; 2) un montacargas lleva los tambos de aceite usado, los filtros y la basura al centro de acopio; 3) se llena el manifiesto en SiMAR (Keiko II, folio MAN22052026 001); 4) una empresa recolectora solicita la recolección y el centro de acopio la aprueba (Enviada → Aprobada); 5) el camión la lleva a la planta de reciclaje (Recolectada) |
+| 0:48 | MARPOL Anexo V: ni un plástico al mar; el manifiesto que genera SiMAR, con sus firmas y su folio |
+| 0:57 | Don Francisco: la cita y los principios de diseño |
+| 1:03 | Conciencia azul: 1 L de aceite puede contaminar un millón de litros de agua (cubo de 10 m, a escala) |
+| 1:11 | Impacto: 742 manifiestos, 80,957 kg de basura, 125,530 L de aceite, 125.6 t de CO₂ |
+| 1:20 | Puertos: Puerto Peñasco y 8 puertos más en el globo, al atardecer |
+| 1:28 | Plan México: mapa de México en 3D y las dos metas con las que SiMAR está en línea |
+| 1:36 | Colaboradores: Dr. Ixtoc Marlo Rivera Núñez (CIAD), Ing. Francisco Javier Bojórquez Ochoa (DCK Puerto Peñasco), Dr. Gabriel Rivera Solis (Centro de acopio Rivera) y Dr. Aarón Rivera Núñez (Reserva de la Biosfera El Pinacate y Gran Desierto de Altar) |
+| 1:43 | Cierre, de noche |
+
+El flujo del paso 4 sigue al sistema real: la solicitud de recolección pasa por Enviada, Aprobada y Recolectada
+(`components/asociaciones/LineaDeTiempo.tsx` en DCK_react).
 
 ## Monitor del stand (modo kiosco)
 
