@@ -7,7 +7,9 @@ respaldo de SEMARNAT. Sitio de la plataforma: <https://simar-app.vercel.app>.
 
 Todo vive en un solo archivo, [`index.html`](./index.html) (es a la vez la fuente: se edita directamente): Three.js 0.159 y GSAP 3.12 se cargan
 desde jsDelivr y las tipografías (Atkinson Hyperlegible Next y Mono) desde Google Fonts; lo demás
-(pantallas, hojas, texturas, continentes) se genera dentro de la página.
+(pantallas, hojas, texturas, continentes) se genera dentro de la página. Tres modelos (el trabajador del
+puerto, el camaronero y el kit de bodegas, contenedores, pangas, rocas y plantas) se modelaron en Blender
+con 3D Jutsu de Higgsfield y van incrustados como GLB; sus fuentes están en [`modelos/`](./modelos/LEEME.md).
 
 ## Guion (119.5 s en bucle)
 
@@ -16,7 +18,7 @@ desde jsDelivr y las tipografías (Atkinson Hyperlegible Next y Mono) desde Goog
 | 0:00 | Inicio: el emblema se arma en 3D al amanecer |
 | 0:07 | El problema: manifiestos escritos a mano que se deterioran |
 | 0:16 | La plataforma: laptop con el Panel y teléfono con "Nuevo manifiesto" |
-| 0:24 | Cómo funciona, paso a paso, en un diorama del puerto: 1) llega el camaronero (estela de espuma, balanceo) y queda amarrado a las bitas; 2) la grúa del muelle baja la tarima de tambos y un montacargas la lleva al centro de acopio; 3) se llena el manifiesto en SiMAR (Keiko II, folio MAN22052026 001); 4) una empresa recolectora solicita la recolección y el centro de acopio la aprueba (Enviada → Aprobada); el camión entra por el camino de acceso y el montacargas sube la tarima a la plataforma; 5) el camión entra en reversa a la bahía de la planta de reciclaje (Recolectada). Alrededor: tierra con escollera, bodegas, estiba de contenedores, sierras del desierto y trabajadores con casco y chaleco |
+| 0:24 | Cómo funciona, paso a paso, en un diorama del puerto: 1) llega el camaronero (estela de espuma, balanceo) y queda amarrado a las bitas; 2) la grúa del muelle baja la tarima de tambos y un montacargas la lleva al centro de acopio; 3) se llena el manifiesto en SiMAR (Keiko II, folio MAN22052026 001); 4) una empresa recolectora solicita la recolección y el centro de acopio la aprueba (Enviada → Aprobada); el camión entra por el camino de acceso y el montacargas sube la tarima a la plataforma; 5) el camión entra en reversa a la bahía de la planta de reciclaje (Recolectada). Alrededor: tierra con escollera, bodegas, estiba de contenedores, pangas varadas y fondeadas, matorral y sierras del desierto, y trabajadores con casco y chaleco (uno hace señas a la grúa, otro va en la cubierta del barco) |
 | 0:48 | MARPOL Anexo V: ni un plástico al mar; el manifiesto que genera SiMAR, con sus firmas y su folio |
 | 0:57 | Don Francisco: la cita y los principios de diseño |
 | 1:03 | Conciencia azul: 1 L de aceite puede contaminar un millón de litros de agua (cubo de 10 m, a escala) |
@@ -153,6 +155,7 @@ Necesitan Playwright y una carpeta con `three@0.159.0` y `gsap@3.12.5` instalado
 node tools/shoot.js index.html <deps> capturas 10,30,84 1600   # capturas en esos segundos
 node tools/seekcheck.js index.html <deps>                      # mismo cuadro al ir y volver
 node tools/objshot.js modulo.js salida "30,15,5,0"             # banco para modelar un objeto 3D
+python3 tools/incrustar-glb.py camaronero modelos/camaronero.glb # reincrusta un modelo de Blender
 ```
 
 ## Correr en local
